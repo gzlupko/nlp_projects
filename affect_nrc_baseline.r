@@ -1,6 +1,6 @@
 library(data.table)
 library(syuzhet)
- a
+
 
 ### Get validation data
 dt = data.table(fread('~/Downloads/SemEval2018-Task1-all-data/English/E-c/2018-E-c-En-test-gold.txt'))
