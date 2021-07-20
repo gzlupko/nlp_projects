@@ -1,7 +1,8 @@
 # Sample LDA Pipe 
 
 library(tidytext) 
-library(tidyverse) 
+library(tidyverse)
+library(topicmodels) 
 
 # import data and convert to tibble 
 docs <- tibble(line = 1:6,
@@ -13,15 +14,32 @@ docs <- tibble(line = 1:6,
                                 "learn how to cook"))
 
 
+twitter <- readRDS("sample_twitter_data.rds") 
+
+
 # create document term matrix
 # here choose to remove stop words 
-sample_dtm <- docs %>%
-  unnest_tokens(word, decisions) %>%
+sample_dtm <- twitter %>%
+  unnest_tokens(word, tweet_text) %>%
   anti_join(stop_words) %>%
-  count(line, word) %>%
-  cast_dtm(document = line, term = word, value = n) %>%
+  count(tweet_id, word) %>%
+  cast_dtm(document = tweet_id, term = word, value = n) %>%
   as.matrix() 
 
+# run a 3 topic LDA 
+lda_1 <- LDA(
+  sample_dtm, 
+  k = 3, 
+  method = "Gibbs"
+  
+)
 
+# tidy the LDA model output 
+ 
+lda_1_topics <- lda_1 %>%
+  tidy(matrix = "beta") 
 
+# arrange topics descending
 
+lda_1_topics %>%
+  arrange(desc(beta)) 
