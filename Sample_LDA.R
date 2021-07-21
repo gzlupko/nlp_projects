@@ -44,7 +44,25 @@ lda_1_topics <- lda_1 %>%
 lda_1_topics %>%
   arrange(desc(beta)) 
 
+# arrange top terms by topic
 
+word_probs <- lda_1_topics %>% 
+  group_by(topic) %>% 
+  top_n(15, beta) %>% 
+  ungroup() %>%
+  mutate(term2 = fct_reorder(term, beta))
+
+
+# Plot word_probs, color and facet based on topic
+ggplot(
+  word_probs, 
+  aes(term2, beta, fill = as.factor(topic))
+) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap( ~ topic, scales = "free") +
+  coord_flip()
+
+# probably need to remove certain words like klm, de, 2 to refine
 
 #Determine optimal number of topics using ldatuning#
 library(ldatuning)
