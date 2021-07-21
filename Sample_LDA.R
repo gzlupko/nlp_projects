@@ -43,3 +43,22 @@ lda_1_topics <- lda_1 %>%
 
 lda_1_topics %>%
   arrange(desc(beta)) 
+
+
+
+#Determine optimal number of topics using ldatuning#
+library(ldatuning)
+
+seed<-90178933469
+result.gibbs <- FindTopicsNumber(
+  sample_dtm,
+  topics = seq(from = 2, to = 10, by = 1),
+  metrics = c("CaoJuan2009"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+FindTopicsNumber_plot(result.gibbs)
