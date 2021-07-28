@@ -27,3 +27,12 @@ Below is an LDA density plot for the decisions that participants listed. The den
 Below are the top terms for each of the three topics in the recommended three topic solution. 
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/reasons_stemmed_plot.png)
+
+
+
+Sentiment Analysis 
+
+Below are word counts and associated sentiments for sample airline review Twitter data. 
+
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/sentiment_count.png)
