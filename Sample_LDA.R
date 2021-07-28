@@ -80,3 +80,25 @@ result.gibbs <- FindTopicsNumber(
 )
 
 FindTopicsNumber_plot(result.gibbs)
+
+
+##### Reasons data 
+
+sample_reasons <- read_csv("sample_reasons_data.csv") 
+reasons <- sample_reasons[-c(1:4), ]
+colnames(reasons) <- "response"
+reasons$participant_id <- 1:length(reasons$response) 
+# reorder columns 
+reasons <- reasons[, c(2,1)]
+
+
+# create dtm for TM; remove stop words
+reasons_dtm <- reasons %>%
+  unnest_tokens(word, response) %>%
+  anti_join(stop_words) %>%
+  count(participant_id, word) %>%
+  cast_dtm(document = participant_id, term = word, value = n) %>%
+  as.matrix() 
+
+# determine ideal number of topic models; visualize
+
