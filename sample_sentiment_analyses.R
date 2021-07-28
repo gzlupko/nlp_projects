@@ -30,3 +30,12 @@ tidy_review %>%
 tidy_review %>%
   count(word) %>%
   arrange(desc(n)) 
+
+library(kableExtra) 
+ 
+tidy_review %>%
+  count(word, sentiment) %>%
+  arrange(desc(n)) %>%
+  kbl() %>%
+  kable_styling() %>%
+  save_kable(file = "tidy_review.png")  
