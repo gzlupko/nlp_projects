@@ -102,3 +102,18 @@ reasons_dtm <- reasons %>%
 
 # determine ideal number of topic models; visualize
 
+library(ldatuning)
+
+seed<- 59127
+reasons_gibbs <- FindTopicsNumber(
+  reasons_dtm,
+  topics = seq(from = 2, to = 10, by = 1),
+  metrics = c("CaoJuan2009"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+FindTopicsNumber_plot(result.gibbs)
