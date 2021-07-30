@@ -3,6 +3,7 @@
 library(tidytext) 
 library(tidyverse)
 library(topicmodels) 
+library(ldatuning)
 
 # import data and convert to tibble 
 docs <- tibble(line = 1:6,
@@ -102,11 +103,84 @@ reasons_dtm <- reasons %>%
 
 # determine ideal number of topic models; visualize
 
-library(ldatuning)
+
 
 seed<- 59127
 reasons_gibbs <- FindTopicsNumber(
   reasons_dtm,
+  topics = seq(from = 2, to = 10, by = 1),
+  metrics = c("CaoJuan2009",
+              "Arun2010", 
+              "Deveaud2014"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+FindTopicsNumber_plot(reasons_gibbs) 
+
+
+reasons_lda <- LDA(
+  reasons_dtm, 
+  k = 3, 
+  method = "Gibbs"
+  
+)
+
+# tidy the LDA model output 
+
+reasons_lda_topics <- reasons_lda %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta)) 
+reasons_lda_topics 
+
+# arrange top 15 terms by each topic 
+
+reasons_word_probs <- reasons_lda_topics %>% 
+  group_by(topic) %>% 
+  top_n(15, beta) %>% 
+  ungroup() %>%
+  mutate(term2 = fct_reorder(term, beta))
+reasons_word_probs
+
+# Plot word_probs, color and facet based on topic
+ggplot(
+  reasons_word_probs, 
+  aes(term2, beta, fill = as.factor(topic))
+) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap( ~ topic, scales = "free") +
+  coord_flip()
+
+
+# Correlated Topic Model (CTM)
+
+reasons_ctm <- CTM(reasons_dtm, k = 2, control=list(seed=831))
+beta_plot(topic_object = reasons_lda,  
+          n = 2)
+#Extract topics by document and terms by topic for CTM#
+reasons_ctm_topics <- as.matrix(topics(reasons_ctm))
+reasons_ctm_terms <- as.matrix(terms(reasons_ctm, 2))
+reasons_ctm_terms
+
+
+
+
+# create dtm for TM; remove stop words and not convert to word stems 
+library(SnowballC)
+reasons_dtm_stemmed <- reasons %>%
+  unnest_tokens(word, response) %>%
+  anti_join(stop_words) %>%
+  mutate(stem = wordStem(word)) %>%
+  count(participant_id, stem) %>%
+  cast_dtm(document = participant_id, term = stem, value = n) %>%
+  as.matrix() 
+
+seed<- 232342 
+results_reasons_stemmed <- FindTopicsNumber(
+  reasons_dtm_stemmed,
   topics = seq(from = 2, to = 10, by = 1),
   metrics = c("CaoJuan2009"),
   method = "GIBBS",
@@ -115,5 +189,36 @@ reasons_gibbs <- FindTopicsNumber(
   mc.cores = 2L,
   verbose = TRUE
 )
+FindTopicsNumber_plot(results_reasons_stemmed)
 
-FindTopicsNumber_plot(result.gibbs)
+
+reasons_lda_stemmed <- LDA(
+  reasons_dtm_stemmed, 
+  k = 3, 
+  method = "Gibbs"
+  
+)
+
+# tidy the LDA model output 
+
+reasons_stemmed_topics <- reasons_lda_stemmed %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta)) 
+reasons_stemmed_topics
+
+
+reasons_stemmed_word_probs <- reasons_stemmed_topics %>% 
+  group_by(topic) %>% 
+  top_n(15, beta) %>% 
+  ungroup() %>%
+  mutate(term2 = fct_reorder(term, beta))
+reasons_stemmed_word_probs
+
+# Plot word_probs, color and facet based on topic
+ggplot(
+  reasons_stemmed_word_probs, 
+  aes(term2, beta, fill = as.factor(topic))
+) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap( ~ topic, scales = "free") +
+  coord_flip()
