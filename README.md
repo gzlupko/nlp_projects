@@ -30,6 +30,15 @@ Below are the top terms for each of the three topics in the recommended three to
 
 
 
+The below table shows the probabilities of each topic occuring in the corpus (overall collection of text data) as well as the the probability of each term occuring in the corpus. Note: this is based on a three-topic solution, which is recommended by the density statistic as well as a subjective content review of the groupings. 
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/beta_gamma_sample.png)
+
+
+
+
+
+
 Sentiment Analysis 
 
 Below are word counts and associated sentiments for sample airline review Twitter data. 
