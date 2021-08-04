@@ -89,3 +89,18 @@ trigram_separated %>%
    count(word1, word2, word3, sort = T) 
 
 trigram_filtered
+
+
+
+# bi-gram network visualization 
+library(igraph) 
+library(ggraph) 
+bigram_graph <- bigram_counts %>% 
+  filter(n > 1) %>%
+  graph_from_data_frame()
+
+set.seed(2017)
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
