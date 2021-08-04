@@ -51,3 +51,41 @@ trigram_filtered <- reasons %>%
   count(word1, word2, word3, sort = TRUE) %>%
   unite(trigram, word1, word2, word3, sep = " ")
 #write.csv(trigram_filtered, "decision_data_trigram.csv") 
+
+# create a tri_gram separated list to examine preceeding and succeeding words 
+
+trigram_separated <- reasons %>%
+  unnest_tokens(trigram, response, token = "ngrams", n = 3) %>%
+  separate(trigram, c("word1", "word2", "word3"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word,
+         !word2 %in% stop_words$word,
+         !word3 %in% stop_words$word) %>%
+  count(word1, word2, word3, sort = TRUE) 
+
+
+# bigram - word succeeding for target words 
+
+move_bigram <- bigrams_separated %>%
+  filter(word1 == "move") %>%
+  count(word1, word2, sort = T) %>%
+  mutate(proportion_overall = (n /sum(n)))
+#write.csv(move_bigram, "move_bigram.csv") 
+job_bigram <- bigrams_separated %>%
+  filter(word1 == "job") %>%
+  count(word1, word2, sort = T) %>%
+  mutate(proportion_overall = (n /sum(n)))
+#write.csv(job_bigram, "job_bigram.csv") 
+
+start_bigram <- bigrams_separated %>%
+  filter(word1 == "start") %>%
+  count(word1, word2, sort = T) %>%
+  mutate(proportion_overall = (n /sum(n)))
+#write.csv(start_bigram, "start_bigram.csv") 
+
+# trigram words preceeding
+
+trigram_separated %>%
+  filter(word1 == "move") %>%
+   count(word1, word2, word3, sort = T) 
+
+trigram_filtered
