@@ -32,6 +32,16 @@ N-gram analyses are used to understand which words are commonly used together in
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/sample_n-gram_analysis.png) 
 
 
+
+
+
+
+The below table shows the most commonly occuring words that succeed target words from our topic model.
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/bi_gram_succeeding.png)
+
+
+
 ### Sentiment Analysis 
 
 Below are word counts and associated sentiments for sample airline review Twitter data. 
