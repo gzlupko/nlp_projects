@@ -2,6 +2,7 @@
 
 
 library(tidytext) 
+library(sentimentr)
 library(tidyverse) 
 
 
@@ -100,4 +101,29 @@ tidy_counters
 prop_test_positive <- prop.test(x = c(377,232), n = c(1359,1297))
 prop_test_positive 
 
+
+# statement/sentence-level sentiment analysis
+library(sentimentr)
+
+
+reasons_combined %>%
+  unnest_sentences(word, Reasons) %>%
+  mutate(reason_id = row_number()) %>%
+  inner_join(get_sentiments("bing")) 
+
+
+
+statement_sentiment <- get_sentences(reasons_combined$Reasons) %>%
+  sentiment() %>%
+  mutate(reason_id = row_number())
+
+# add reason_id tag to reasons data 
+reasons_combined <- reasons_combined %>%
+  mutate(reason_id = row_number()) 
+
+merge(x = reasons_combined, y = statement_sentiment, by = reason_id) 
+
+
+View(statement_sentiment)   
+View(reasons_combined)   
 
