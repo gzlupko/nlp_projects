@@ -53,3 +53,16 @@ Below are word counts and associated sentiments for sample airline review Twitte
 
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/sentiment_count.png)
+
+
+
+### Hypothesis Testing with Sentiment Scores 
+
+
+The table below shows results from a two proportion z-test on the difference of the proportion of positively valenced words in the reasons for data (N = 1,359) compared to the proportion of positively valenced words in the counterarguments data (N = 1,297) 
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/sample_two_prop_test.png)
+
+
+
+
