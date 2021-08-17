@@ -1,8 +1,11 @@
 # NLP Code for Dynamic Network Lab Research
-NLP code repo for DNL research
 
 
-Sample Decision Data (N = 239) 
+**NLP code repo for DNL research**
+
+
+The visualizations in this Readme are based on sample decision data (N = 239) from DNL's Summer 2021 general decision calculator study.  
+&nbsp;
 
 ### LDA Density Plots 
 
