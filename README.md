@@ -13,13 +13,32 @@ Below is an LDA density plot for the decisions that participants listed. The den
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/topic_density_stemmed_plot.png)
 
+Document term matrices can be created in R using the `tidytext` library and an LDA model can be created using the `topicmodels` library. Topic model density plots are generated using the `ldatuning` library.
 
+The following code can be used to generate a density plot analyzing between `k = 2` to `k = 10` topics as was done above. 
 
+&nbsp;
+```
+library(ldatuning)
 
+seed<-90178933469
+result.gibbs <- FindTopicsNumber(
+  sample_dtm,
+  topics = seq(from = 2, to = 10, by = 1),
+  metrics = c("CaoJuan2009"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+FindTopicsNumber_plot(result.gibbs)
+```
 
 &nbsp;
 
-&nbsp;
+
 
 
 
