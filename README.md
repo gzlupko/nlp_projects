@@ -43,9 +43,6 @@ The below table shows the most commonly occuring words that succeed target words
 
 
 
-Bigram Network
-
-![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/bigram_network.png)
 
 ### Sentiment Analysis 
 
