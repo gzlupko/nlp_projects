@@ -63,3 +63,17 @@ The table below shows results from a two proportion z-test on the difference of 
 
 
 
+
+
+
+
+### Correlations with Sentiment Scores and Other Variables 
+
+
+Sentiment scores can be created at the sentence-level using the sentimentr library in R. Those scores can be used in subsequent analyses with other variables measured in cross-sectional research. The below correlation matrix shows the correlations between combined reason sentiment scores (e.g. all reasons combined into one long string) with other BRT variables like perceived control and global motives. 
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/reasons_corrplot.png)
+
+
+
+
