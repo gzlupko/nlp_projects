@@ -50,7 +50,6 @@ Below are the top terms for each of the three topics in the recommended three to
 
 &nbsp;
 
-&nbsp;
 
 ### Topic and Term Probabilities 
 The below table shows the probabilities of each topic occuring in the corpus (overall collection of text data) as well as the the probability of each term occuring in the corpus. Note: this is based on a three-topic solution, which is recommended by the density statistic as well as a subjective content review of the groupings. 
@@ -58,10 +57,8 @@ The below table shows the probabilities of each topic occuring in the corpus (ov
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/beta_gamma_sample.png)
 
 
-
 &nbsp;
 
-&nbsp;
 
 ### N-gram Analyses 
 
@@ -73,8 +70,6 @@ N-gram analyses are used to understand which words are commonly used together in
 
 
 
-
-&nbsp;
 
 &nbsp;
 
@@ -98,7 +93,6 @@ Below are word counts and associated sentiments for sample airline review Twitte
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/sentiment_count.png)
 
 
-&nbsp;
 
 &nbsp;
 
@@ -111,8 +105,6 @@ The table below shows results from a two proportion z-test on the difference of 
 
 
 
-
-&nbsp;
 
 &nbsp;
 
