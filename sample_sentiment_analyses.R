@@ -48,8 +48,69 @@ tidy_review %>%
 reasons_data <- read.csv("reasons_data_8.10.csv") 
 reasons_combined <- read.csv("reasons_combined.csv") 
 # convert to character 
+head(reasons_data)
+
+reasons_data[ ,c(3:12)] <- as.vector(reasons_data[ ,c(3:12)])
 
 reasons_combined$Reasons <- as.vector(reasons_combined$Reasons) 
+
+
+
+# load pre-combined reasons data and show correlation with BRT variables
+
+combined_reasons <- read.csv("reasons_and_pc.csv") 
+
+# change combined reasons to vector 
+
+combined_reasons$reasons_combined <- as.vector(combined_reasons$reasons_combined)
+
+# add reason_id to combined_reasons so that after conducting sentiment analysis, can re-join to other varaibles
+
+combined_reasons$reason_id <- paste(1:nrow(combined_reasons)) # may not need this step using sentimnentr pipe 
+combined_reasons
+
+# now use sentimentr to calculate an overall sentiment score for the combined reasons 
+library(sentimentr) 
+sentiment_scores <- combined_reasons %>% 
+  unnest(cols = c()) %>% 
+  sentimentr::get_sentences() %>% 
+  sentimentr::sentiment()
+View(sentiment_scores) 
+# rename sentiment to reasons_sentiment 
+
+sentiment_scores <- sentiment_scores %>%
+   rename(reasons_sentiment = sentiment) 
+
+# clean column names before correlations 
+
+sentiment_scores <- sentiment_scores %>%
+  rename(attitude = Att_Ave) %>%
+  rename(pc = PC_Ave) %>%
+  rename(regret_global_motive = Regret_GlobalMotive_Ave) %>%
+  rename(r_comparison= ReasonComparison_3item_Standardized_Ave) %>%
+  rename(decision_quality = Dec_Quality_Survey1_T2_Standardized_AVE) %>%
+  rename(regret_t2 = Regret_Scale_Survey1_T2_2_items_AVE) 
+  
+
+
+# generate corrplot with reasons_sentiment and BRT variables 
+library(corrplot) 
+
+sentiment_cor <- sentiment_scores %>%
+  select(attitude, pc, regret_global_motive, r_comparison, decision_quality, regret_t2, reasons_sentiment)
+
+# two  rows in regret_global_motives missing values; remove and re-run 
+
+sentiment_cor <- sentiment_cor %>%
+  filter(!is.na(regret_global_motive)) 
+
+sentiment_cor <- cor(sentiment_cor) 
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+corrplot(sentiment_cor, method="color", col=col(200),  
+         type = "lower", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, title = "\n\n Reason Sentiment Scores Correlation Matrix") 
 
 
 
@@ -106,24 +167,10 @@ prop_test_positive
 library(sentimentr)
 
 
-reasons_combined %>%
-  unnest_sentences(word, Reasons) %>%
-  mutate(reason_id = row_number()) %>%
-  inner_join(get_sentiments("bing")) 
-
-
-
-statement_sentiment <- get_sentences(reasons_combined$Reasons) %>%
-  sentiment() %>%
-  mutate(reason_id = row_number())
-
-# add reason_id tag to reasons data 
-reasons_combined <- reasons_combined %>%
-  mutate(reason_id = row_number()) 
-
-merge(x = reasons_combined, y = statement_sentiment, by = reason_id) 
-
-
-View(statement_sentiment)   
-View(reasons_combined)   
-
+# use get_sentences() from sentimentr library to analyze sentiments by reason
+reasons_sentiment <- reasons_combined %>% 
+  unnest(cols = c()) %>% 
+  sentimentr::get_sentences() %>% 
+  sentimentr::sentiment()
+# view first few rows 
+head(reasons_sentiment) 
