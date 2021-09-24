@@ -103,15 +103,11 @@ reasons_dtm <- reasons %>%
 
 # determine ideal number of topic models; visualize
 
-
-
 seed<- 59127
 reasons_gibbs <- FindTopicsNumber(
   reasons_dtm,
   topics = seq(from = 2, to = 10, by = 1),
-  metrics = c("CaoJuan2009",
-              "Arun2010", 
-              "Deveaud2014"),
+  metrics = c("CaoJuan2009"),
   method = "GIBBS",
   
   control=list(seed = seed),
@@ -124,8 +120,9 @@ FindTopicsNumber_plot(reasons_gibbs)
 
 reasons_lda <- LDA(
   reasons_dtm, 
-  k = 3, 
-  method = "Gibbs"
+  k = 2, 
+  method = "Gibbs", 
+  
   
 )
 
@@ -155,6 +152,41 @@ ggplot(
   coord_flip()
 
 
+#Set parameters for Gibbs sampling
+burnin <- 4000
+iter <- 2000
+thin <- 500
+seed <-list(2003,5,63,100001,765)
+nstart <- 5
+best <- TRUE
+
+# use info priors values pre-set for Gibbs sampling based research recommendations and as seen in 
+# Finch et al. (2018) 
+lda_gibbs_2 <- LDA(reasons_dtm,k = 2, method="Gibbs", control=list(nstart=nstart, seed = seed, best=best, burnin = burnin, iter = iter, thin=thin))
+lda_gibs_2.topics <- as.matrix(topics(lda_gibbs_2))
+
+# Calculate perplexity statistic using LDAs for multiple solutions
+# lowest perplexity value indicates best topic model solution 
+# follows R code method used by Finch et al. (2018) 
+
+
+lda_vem2  <-LDA(reasons_dtm,2, method="VEM")
+lda_vem3 <-LDA(reasons_dtm,3, method="VEM")
+lda_vem4  <-LDA(reasons_dtm,4, method="VEM")
+lda_vem5  <-LDA(reasons_dtm,5, method="VEM")
+lda_vem6  <-LDA(reasons_dtm,6, method="VEM")
+
+perplexity(lda_gibbs_2) 
+perplexity(lda_vem2) 
+perplexity(lda_vem3) 
+perplexity(lda_vem4) 
+perplexity(lda_vem5) 
+perplexity(lda_vem6) 
+
+
+
+
+
 # Correlated Topic Model (CTM)
 
 reasons_ctm <- CTM(reasons_dtm, k = 2, control=list(seed=831))
@@ -170,7 +202,7 @@ reasons_ctm_terms
 
 # create dtm for TM; remove stop words and not convert to word stems 
 library(SnowballC)
-reasons_dtm_stemmed <- reasons %>%
+decisions_dtm_stemmed <- reasons %>%
   unnest_tokens(word, response) %>%
   anti_join(stop_words) %>%
   mutate(stem = wordStem(word)) %>%
@@ -179,8 +211,8 @@ reasons_dtm_stemmed <- reasons %>%
   as.matrix() 
 
 seed<- 232342 
-results_reasons_stemmed <- FindTopicsNumber(
-  reasons_dtm_stemmed,
+results_decisions_stemmed <- FindTopicsNumber(
+  decisions_dtm_stemmed,
   topics = seq(from = 2, to = 10, by = 1),
   metrics = c("CaoJuan2009"),
   method = "GIBBS",
@@ -189,11 +221,11 @@ results_reasons_stemmed <- FindTopicsNumber(
   mc.cores = 2L,
   verbose = TRUE
 )
-FindTopicsNumber_plot(results_reasons_stemmed)
+FindTopicsNumber_plot(results_decisions_stemmed)
 
-
-reasons_lda_stemmed <- LDA(
-  reasons_dtm_stemmed, 
+# run LDA on k = 3 based on density 
+decisions_lda_stemmed <- LDA(
+  decisions_dtm_stemmed, 
   k = 3, 
   method = "Gibbs"
   
@@ -201,24 +233,40 @@ reasons_lda_stemmed <- LDA(
 
 # tidy the LDA model output 
 
-reasons_stemmed_topics <- reasons_lda_stemmed %>%
+decisions_stemmed_topics <- decisions_lda_stemmed %>%
   tidy(matrix = "beta") %>%
   arrange(desc(beta)) 
-reasons_stemmed_topics
+decisions_stemmed_topics
 
 
-reasons_stemmed_word_probs <- reasons_stemmed_topics %>% 
+decisions_stemmed_word_probs <- decisions_stemmed_topics %>% 
   group_by(topic) %>% 
-  top_n(15, beta) %>% 
+  top_n(10, beta) %>% 
   ungroup() %>%
   mutate(term2 = fct_reorder(term, beta))
-reasons_stemmed_word_probs
+decisions_stemmed_word_probs
+# save as .csv file 
+#write.csv(decisions_stemmed_word_probs, "decisions_lda_topics.csv") 
 
 # Plot word_probs, color and facet based on topic
 ggplot(
-  reasons_stemmed_word_probs, 
+  decisions_stemmed_word_probs, 
   aes(term2, beta, fill = as.factor(topic))
 ) +
   geom_col(show.legend = FALSE) +
   facet_wrap( ~ topic, scales = "free") +
   coord_flip()
+
+
+#Extract topics by document and terms by topic for LDA#
+lda_three_topics <- as.matrix(topics(decisions_lda_stemmed))
+lda_three_terms <- as.matrix(terms(decisions_lda_stemmed,10))
+colnames(lda_three_topics) <- "topic_number"
+lda_three_topics <- data.frame(lda_three_topics) 
+# generate count of number of words by topic in the corpus 
+lda_three_topics %>%
+  group_by(topic_number) %>%
+  count(topic_number) 
+#probabilities associated with each topic assignment
+topicProbabilities_lda_three_topics <- as.data.frame(decisions_lda_stemmed@gamma)
+sapply(topicProbabilities_lda_three_topics, mean)
