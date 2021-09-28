@@ -83,7 +83,7 @@ result.gibbs <- FindTopicsNumber(
 FindTopicsNumber_plot(result.gibbs)
 
 
-##### Reasons data 
+#### Reasons data 
 
 sample_reasons <- read_csv("sample_reasons_data.csv") 
 reasons <- sample_reasons[-c(1:4), ]
