@@ -70,14 +70,18 @@ reasons_ctm_topics
 
 # arrange top 15 terms by each topic 
 
-reasons_word_probs <- reasons_ctm_topics %>% 
-  group_by(topic) %>% 
-  top_n(15, beta) %>% 
+reasons_word_probs<- reasons_ctm_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
   ungroup() %>%
-  mutate(term2 = fct_reorder(term, beta))
+  arrange(topic, -beta)
 
-reasons_word_probs
-
+reasons_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
 
 # assign topic from CTM to observations 
 # use the function topics() from topicmodels library to assign the most
