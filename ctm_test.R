@@ -80,14 +80,31 @@ reasons_word_probs
 
 
 # assign topic from CTM to observations 
+# use the function topics() from topicmodels library to assign the most
+# likely topics for each document (in this case combined reasons) 
 
 lda_assignments <- data.frame(topics(lda_two)) 
 lda_assignments$decision_id <- rownames(lda_assignments) 
 colnames(lda_assignments) <- c("topic_assigned", "decision_id") 
 
-# join topic assignment outputs with original data set using dyply, join_by 
+# join topic assignment outputs with original data set using dyply's inner_join() 
 
-topics_assigned <-survey_dat %>% 
-  left_join(lda_assignments) 
+topics_assigned <- inner_join(x = survey_dat, 
+           y = lda_assignments, 
+           by = "decision_id") 
+  
+# check distribution of topics assigned
+# shows even split between two topics 
+table(topics_assigned$topic_assigned) 
 
-View(topics_assigned) 
+
+# return the topic probabilities for each 'document' (e.g. combined reasons)
+# using posterior() from the topicmodels library
+# afterwards, cleaning df below
+# also exporting the table below as a 'loadings' table 
+
+lda_two_probabilities <- as.data.frame(topicmodels::posterior(lda_two)$topics)
+
+lda_two_probabilities$decision_id <- rownames(lda_two_probabilities) 
+lda_two_probabilities <- lda_two_probabilities[ , c(3,1,2)] 
+#write.csv(lda_two_probabilities, "lda_two_probabilities.csv")
