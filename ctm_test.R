@@ -81,7 +81,7 @@ reasons_word_probs %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
   geom_col(show.legend = FALSE) +
   facet_wrap(~ topic, scales = "free") +
-  scale_y_reordered()
+  scale_y_reordered() + theme(axis.text=element_text(size=12)) 
 
 # assign topic from CTM to observations 
 # use the function topics() from topicmodels library to assign the most
