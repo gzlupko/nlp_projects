@@ -113,23 +113,11 @@ lda_two_probabilities$decision_id <- rownames(lda_two_probabilities)
 lda_two_probabilities <- lda_two_probabilities[ , c(3,1,2)] 
 #write.csv(lda_two_probabilities, "lda_two_probabilities.csv")
 
+# next steps....run topic model and assignment on individual reasons
+# use a group_by feature to keep the BRT variables tagged by reasons 
+# then will use dummy coding scheme to generate regression of topic on
+# BRT variables 
 
 
-
-
-# sample model comparison with categorical predictor 
-# first create factor 
-
-topics_assigned$topic_assignedF <- factor(topics_assigned$topic_assigned, levels = c("Work", "Life"))
-
-# model comparison  - e.g. regret regressed on subjective norm and topic 
-
-mod1 <- lm(Regret_Scale_Survey1_T2_2_items_AVE ~ SN_Ave, data = topics_assigned) 
-mod1 %>% summary()
-
-mod2 <- lm(Regret_Scale_Survey1_T2_2_items_AVE ~ SN_Ave + topic_assigned, 
-           data = topics_assigned) 
-
-anova(mod1, mod2) 
 
        
