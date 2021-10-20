@@ -118,6 +118,52 @@ lda_two_probabilities <- lda_two_probabilities[ , c(3,1,2)]
 # then will use dummy coding scheme to generate regression of topic on
 # BRT variables 
 
+# load raw data in raw format and follow steps 
+# below to convert from wide to long format 
+setwd("/Users/gianzlupko/Desktop") 
+dat <- read_csv("reasons_cons_10.20.csv")
+
+# first add unique participant id 
+dat1 <- dat %>%
+  mutate(participant_id = 1:length(Decision))
+
+# use duplicated() to check that each participant_id is unique 
+duplicated(dat1[ ,c("participant_id")])
+
+# after confirming that all ids are unique
+# use reshape function 
+
+data_long <- reshape(dat1, vary = c("decision"), 
+                     direction = "long", 
+                     timevar = "Reason", 
+                     idvar = "Participant", 
+                     sep = )
+
+dat2 <- dat1 %>%
+  select(participant_id, Reason1, Reason2, Reason3) 
+
+# first convert reasons to long data format
+data_long <- dat2 %>%
+  gather(key = "Reason", 
+         value = "Reason_Stated", c(-participant_id)) 
 
 
-       
+# next create a subset of the original data without the reasons data
+# instead, retain only the BRT and decision variable scores to reattach
+# to the long data frame
+
+scores_to_merge <- dat1 %>%
+  select(participant_id, ConfRfor, Att_Ave, PC_Ave, Regret_GlobalMotive_Ave, 
+         SN_Ave, ReasonComparison_3item_Standardized_Ave,
+         Int_3_Item_AfterTPB_PossiblyLessBiasedOnReasons_Standardized_Ave, 
+         MoreInfo_3_items_Ave, Dec_Quality_Survey1_T2_Standardized_AVE, 
+         Regret_Scale_Survey1_T2_2_items_AVE)
+
+# now, merge with the long formatted reasons data and merge by participant_id
+
+reasons_formatted <- merge(x = data_long, 
+                           y = scores_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+View(reasons_formatted) 
