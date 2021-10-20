@@ -1,0 +1,79 @@
+---
+title: "WFH Study Code"
+output: html_notebook
+---
+
+
+```{r libraries}
+library(tidytext) 
+library(tidyverse)
+library(topicmodels) 
+library(ldatuning)
+```
+
+
+
+```{r import-data}
+# load raw data and begin conversion to long data format 
+# getwd() 
+# setwd() 
+dat <- read_csv("reasons_cons_10.20.csv")
+```
+
+
+Next, clean the imported data and convert from wide to long format 
+
+
+```{r data-cleaning}
+# first add unique participant id 
+dat1 <- dat %>%
+  mutate(participant_id = 1:length(Decision))
+
+# use duplicated() to check that each participant_id is unique 
+duplicated(dat1[ ,c("participant_id")])
+
+# after confirming that all ids are unique
+# create one data set of reasons that will be 
+# used to convert from wide to long format 
+
+dat2 <- dat1 %>%
+  select(participant_id, Reason1, Reason2, Reason3, Reason3, 
+         Reason4, Reason5, Reason6, Reason7, Reason8, Reason9, Reason10)  
+
+# first convert reasons to long data format
+data_long <- dat2 %>%
+  gather(key = "Reason", 
+         value = "Reason_Stated", c(-participant_id)) 
+
+
+# next create a subset of the original data without the reasons data
+# instead, retain only the BRT and decision variable scores to reattach
+# to the long data frame
+
+scores_to_merge <- dat1 %>%
+  select(participant_id, ConfRfor, Att_Ave, PC_Ave, Regret_GlobalMotive_Ave, 
+         SN_Ave, ReasonComparison_3item_Standardized_Ave,
+         Int_3_Item_AfterTPB_PossiblyLessBiasedOnReasons_Standardized_Ave, 
+         MoreInfo_3_items_Ave, Dec_Quality_Survey1_T2_Standardized_AVE, 
+         Regret_Scale_Survey1_T2_2_items_AVE)
+
+# now, merge with the long formatted reasons data and merge by participant_id
+
+reasons_formatted <- merge(x = data_long, 
+                           y = scores_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+
+# finally remove rows with NA values 
+
+reasons_long <- reasons_formatted %>%
+  filter(!is.na(Reason_Stated)) 
+
+
+# add row_id, which will be used after creating topic model
+# to re-assign the topic model output back to the unique row id 
+reasons_long$row_id <- paste(1:nrow(reasons_long))
+
+```
+
