@@ -15,8 +15,8 @@ library(ldatuning)
 
 ```{r import-data}
 # load raw data and begin conversion to long data format 
-# getwd() 
-# setwd() 
+getwd() 
+setwd( "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp") 
 dat <- read_csv("reasons_cons_10.20.csv")
 ```
 
@@ -76,4 +76,114 @@ reasons_long <- reasons_formatted %>%
 reasons_long$row_id <- paste(1:nrow(reasons_long))
 
 ```
+
+
+
+
+```{r create-DTM}
+#### Topic Modeling 
+
+
+# create dtm for TM; remove stop words
+
+reasons_dtm <- reasons_long %>%
+  unnest_tokens(word, Reason_Stated) %>%
+  anti_join(stop_words) %>%
+  count(row_id, word) %>%
+  cast_dtm(document = row_id, term = word, value = n) %>%
+  as.matrix() 
+              
+# determine ideal number of topic models; visualize
+
+seed<- 59127
+reasons_gibbs <- FindTopicsNumber(
+  reasons_dtm,
+  topics = seq(from = 2, to = 12, by = 1),
+  metrics = c("CaoJuan2009"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+# it appears that an optimal number of topics are 2 or 6
+FindTopicsNumber_plot(reasons_gibbs) 
+```
+
+
+
+```{r TM-evaluation}
+# run a correlated topic model with k = 8
+ctm_1 <- CTM(reasons_dtm, 
+    k = 4, 
+    method = "VEM")
+
+# create similar LDA 
+
+#lda_six <- LDA(reasons_dtm,k = 6) 
+
+# tidy the CTM model output 
+
+reasons_ctm_topics <- ctm_1 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta)) 
+
+reasons_ctm_topics
+
+# arrange top 15 terms by each topic 
+
+reasons_word_probs<- reasons_ctm_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+reasons_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12)) 
+```
+
+
+```{r assign-topics}
+# assign topic from CTM to observations 
+# use the function topics() from topicmodels library to assign the most
+# likely topics for each document (in this case combined reasons) 
+
+ctm_assignments <- data.frame(topics(ctm_1)) 
+ctm_assignments$row_id <- rownames(ctm_assignments) 
+colnames(ctm_assignments) <- c("topic_assigned", "row_id") 
+
+# join topic assignment outputs with original data set using dyply's inner_join() 
+
+topics_assigned <- inner_join(x = reasons_long, 
+           y = ctm_assignments, 
+           by = "row_id") 
+  
+# check distribution of topics assigned
+# shows even split between two topics 
+table(topics_assigned$topic_assigned) 
+```
+
+
+```{r topic-probabilities}
+# return the topic probabilities for each 'document' (e.g. combined reasons)
+# using posterior() from the topicmodels library
+# afterwards, cleaning df below
+# also exporting the table below as a 'loadings' table 
+
+ctm_1_probabilities <- as.data.frame(topicmodels::posterior(ctm_1)$topics)
+
+ctm_1_probabilities$row_id <- rownames(ctm_1_probabilities) 
+ctm_1_probabilities <- ctm_1_probabilities[ , c(3,1,2)] 
+View(ctm_1_probabilities) 
+```
+
+
+
+
+
 
