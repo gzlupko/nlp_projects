@@ -183,6 +183,50 @@ View(ctm_1_probabilities)
 ```
 
 
+```{r dummy-coding}
+
+table(topics_assigned$topic_assigned) 
+
+# for a 4 topic solution
+topics_assigned$topic_1 <- ifelse(topics_assigned$topic_assigned == '1', 1, 0)
+topics_assigned$topic_2 <- ifelse(topics_assigned$topic_assigned == '2', 1, 0)
+topics_assigned$topic_3 <- ifelse(topics_assigned$topic_assigned == '3', 1, 0)
+topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
+
+#write.csv(topics_assigned, "topics_assinged.csv") 
+```
+
+
+
+
+
+```{r check-assumptions}
+
+ggplot(data = topics_assigned, aes(x = Att_Ave)) + geom_histogram() 
+
+
+```
+
+
+
+
+```{r sample-regression}
+
+mod1 <- lm(Att_Ave ~ topic_2 + topic_3 + topic_4, 
+           data = topics_assigned)
+
+
+summary(mod1) 
+```
+
+
+
+
+
+
+
+
+
 
 
 
