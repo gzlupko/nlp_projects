@@ -94,6 +94,8 @@ reasons_dtm <- reasons_long %>%
   as.matrix() 
               
 # determine ideal number of topic models; visualize
+# first, using just the Cao et al. 2009 method via Finch et al. (2019)
+# the Cao 2009 method minmizes density 
 
 seed<- 59127
 reasons_gibbs <- FindTopicsNumber(
@@ -109,6 +111,22 @@ reasons_gibbs <- FindTopicsNumber(
 
 # it appears that an optimal number of topics are 2 or 6
 FindTopicsNumber_plot(reasons_gibbs) 
+
+
+
+# identify k topics again using the broader list of metrics
+result <- FindTopicsNumber(
+  reasons_dtm,
+  topics = seq(from = 2, to = 15, by = 1),
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "VEM",
+  control = list(seed = 831),
+  mc.cores = 2L,
+  verbose = TRUE)
+
+FindTopicsNumber_plot(result)
+
+
 ```
 
 
