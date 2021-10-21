@@ -13,7 +13,7 @@ library(ldatuning)
 
 
 
-```{r import-data}
+```{r import-data, include = F}
 # load raw data and begin conversion to long data format 
 getwd() 
 setwd( "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp") 
@@ -24,7 +24,7 @@ dat <- read_csv("reasons_cons_10.20.csv")
 Next, clean the imported data and convert from wide to long format 
 
 
-```{r data-cleaning}
+```{r data-cleaning, include = F}
 # first add unique participant id 
 dat1 <- dat %>%
   mutate(participant_id = 1:length(Decision))
@@ -233,14 +233,28 @@ topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
 # update this step below by weighting the number of times a topic was mentioned
 # by the participant ... use a count feauture and multiply the topic by n to weight
 
-participant_scores <- topics_assigned %>%
+
+# returns weighted topics per participant; e.g. number of times same person stated a topic
+weighted_scores <- topics_assigned %>%
   group_by(participant_id) %>%
-  mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), topic2 = ifelse(topic_assigned == 2, 1, 0), 
-        topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
-   select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  mutate(topic1 = sum(topic_assigned == 1) * ifelse(topic_assigned == 1, 1, 0), 
+  topic2 = sum(topic_assigned == 2) * ifelse(topic_assigned == 2, 1, 0), 
+  topic3 = sum(topic_assigned == 3) * ifelse(topic_assigned == 3, 1, 0),
+  topic4 = sum(topic_assigned == 4) * ifelse(topic_assigned == 4, 1, 0)) %>%
+  select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
   distinct(participant_id, .keep_all = TRUE) 
 
-#View(participant_scores) 
+  
+  
+# returns non-weighted topics per participant data set 
+#participant_scores <- topics_assigned %>%
+  #group_by(participant_id) %>%
+  #mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), topic2 = ifelse(topic_assigned == 2, 1, 0), 
+        #topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
+   #select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  #distinct(participant_id, .keep_all = TRUE) 
+
+
 
 # output .csv 
 #write.csv(participant_scores, "participant_scores.csv") 
