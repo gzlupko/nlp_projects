@@ -229,6 +229,10 @@ topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
 # make the relevant edits to the code below with the ifelse() statements 
 # and store in the final df that will be used for regression modeling 
 
+
+# update this step below by weighting the number of times a topic was mentioned
+# by the participant ... use a count feauture and multiply the topic by n to weight
+
 participant_scores <- topics_assigned %>%
   group_by(participant_id) %>%
   mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), topic2 = ifelse(topic_assigned == 2, 1, 0), 
