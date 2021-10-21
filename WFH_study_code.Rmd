@@ -132,7 +132,7 @@ FindTopicsNumber_plot(result)
 
 
 ```{r TM-evaluation}
-# run a correlated topic model with k = 8
+# run a correlated topic model with k = 4
 ctm_1 <- CTM(reasons_dtm, 
     k = 4, 
     method = "VEM")
@@ -197,7 +197,7 @@ ctm_1_probabilities <- as.data.frame(topicmodels::posterior(ctm_1)$topics)
 
 ctm_1_probabilities$row_id <- rownames(ctm_1_probabilities) 
 ctm_1_probabilities <- ctm_1_probabilities[ , c(3,1,2)] 
-View(ctm_1_probabilities) 
+#View(ctm_1_probabilities) 
 ```
 
 
@@ -212,6 +212,29 @@ topics_assigned$topic_3 <- ifelse(topics_assigned$topic_assigned == '3', 1, 0)
 topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
 
 #write.csv(topics_assigned, "topics_assinged.csv") 
+
+# now, we need to analyze each participant by row 
+# where we will retain the dummy coding scheme 
+# for the assigned topics but in order to develop
+# a true covariance b/w the topics and the participants' 
+# attitude and intention scores, we can only have one 
+# DV score per participant 
+
+
+head(topics_assigned) 
+
+participant_scores <- topics_assigned %>%
+  group_by(participant_id) %>%
+  mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), topic2 = ifelse(topic_assigned == 2, 1, 0), 
+        topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
+   select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  distinct(participant_id, .keep_all = TRUE) 
+
+#View(participant_scores) 
+
+# output .csv 
+#write.csv(participant_scores, "participant_scores.csv") 
+
 ```
 
 
@@ -226,26 +249,17 @@ ggplot(data = topics_assigned, aes(x = Att_Ave)) + geom_histogram()
 ```
 
 
-
-
 ```{r sample-regression}
 
-mod1 <- lm(Att_Ave ~ topic_2 + topic_3 + topic_4, 
-           data = topics_assigned)
+mod1 <- lm(Att_Ave ~ 1 , 
+           data = participant_scores)
+mod2 <- lm(Att_Ave ~ topic2 + topic3 + topic4, 
+           data = participant_scores)
+
+anova(mod1, mod2)
 
 
-summary(mod1) 
 ```
-
-
-
-
-
-
-
-
-
-
 
 
 
