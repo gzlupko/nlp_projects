@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 
-```{r libraries}
+```{r libraries, include = F}
 library(tidytext) 
 library(tidyverse)
 library(topicmodels) 
@@ -249,10 +249,11 @@ weighted_scores <- topics_assigned %>%
 # returns non-weighted topics per participant data set 
 #participant_scores <- topics_assigned %>%
   #group_by(participant_id) %>%
-  #mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), topic2 = ifelse(topic_assigned == 2, 1, 0), 
-        #topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
-   #select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
-  #distinct(participant_id, .keep_all = TRUE) 
+  #mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), 
+#topic2 = ifelse(topic_assigned == 2, 1, 0), 
+#topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
+#select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+#distinct(participant_id, .keep_all = TRUE) 
 
 
 
@@ -276,10 +277,11 @@ ggplot(data = topics_assigned, aes(x = Att_Ave)) + geom_histogram()
 ```{r sample-regression}
 
 mod1 <- lm(Att_Ave ~ 1 , 
-           data = participant_scores)
+           data = weighted_scores)
 mod2 <- lm(Att_Ave ~ topic2 + topic3 + topic4, 
-           data = participant_scores)
-
+           data = weighted_scores)
+mod2 %>%
+  summary() 
 anova(mod1, mod2)
 
 
