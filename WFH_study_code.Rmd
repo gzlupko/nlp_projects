@@ -206,6 +206,11 @@ ctm_1_probabilities <- ctm_1_probabilities[ , c(3,1,2)]
 table(topics_assigned$topic_assigned) 
 
 # for a 4 topic solution
+# note: this will change based on the optimal number of topics identified above 
+# in the study, the topic model will first be run and inter-rater reliability
+# will be calculated before this step below, where the topics are assigned back 
+# to the data set 
+
 topics_assigned$topic_1 <- ifelse(topics_assigned$topic_assigned == '1', 1, 0)
 topics_assigned$topic_2 <- ifelse(topics_assigned$topic_assigned == '2', 1, 0)
 topics_assigned$topic_3 <- ifelse(topics_assigned$topic_assigned == '3', 1, 0)
@@ -219,9 +224,10 @@ topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
 # a true covariance b/w the topics and the participants' 
 # attitude and intention scores, we can only have one 
 # DV score per participant 
-
-
-head(topics_assigned) 
+# note: this step will also need to reflect the optimal 
+# number of topics (k) identified by the modeling procedures above 
+# make the relevant edits to the code below with the ifelse() statements 
+# and store in the final df that will be used for regression modeling 
 
 participant_scores <- topics_assigned %>%
   group_by(participant_id) %>%
