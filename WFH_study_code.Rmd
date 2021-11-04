@@ -235,7 +235,7 @@ topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
 
 
 # returns weighted topics per participant; e.g. number of times same person stated a topic
-weighted_scores <- topics_assigned %>%
+#weighted_scores <- topics_assigned %>%
   group_by(participant_id) %>%
   mutate(topic1 = sum(topic_assigned == 1) * ifelse(topic_assigned == 1, 1, 0), 
   topic2 = sum(topic_assigned == 2) * ifelse(topic_assigned == 2, 1, 0), 
@@ -244,24 +244,39 @@ weighted_scores <- topics_assigned %>%
   select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
   distinct(participant_id, .keep_all = TRUE) 
 
+
+# should number of topics be divided by 10 or made proportional
+# to the number of topics person stated overall? 
+
+weighted_scores <- topics_assigned %>%
+  group_by(participant_id) %>%
+  mutate(topic1 = (1*sum(topic_assigned == 1)/10), 
+         topic2 = (1*sum(topic_assigned == 2)/10),
+         topic3 = (1*sum(topic_assigned == 3)/10), 
+         topic4 = (1*sum(topic_assigned == 4)/10))  %>%
+  select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  distinct(participant_id, .keep_all = TRUE) 
+
   
   
 # returns non-weighted topics per participant data set 
-#participant_scores <- topics_assigned %>%
-  #group_by(participant_id) %>%
-  #mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), 
-#topic2 = ifelse(topic_assigned == 2, 1, 0), 
-#topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
-#select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
-#distinct(participant_id, .keep_all = TRUE) 
+participant_scores <- topics_assigned %>%
+group_by(participant_id) %>%
+mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), 
+       topic2 = ifelse(topic_assigned == 2, 1, 0), 
+       topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
+  select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  distinct(participant_id, .keep_all = TRUE) 
 
 
 
-# output .csv 
+# output .csv for data quality review purposes
 #write.csv(participant_scores, "participant_scores.csv") 
+#write.csv(topics_assigned, "topics_assigned.csv")
+#write.csv(weighted_scores, "weighted_scores.csv") 
+
 
 ```
-
 
 
 
@@ -278,12 +293,14 @@ ggplot(data = topics_assigned, aes(x = Att_Ave)) + geom_histogram()
 
 mod1 <- lm(Att_Ave ~ 1 , 
            data = weighted_scores)
-mod2 <- lm(Att_Ave ~ topic2 + topic3 + topic4, 
+mod2 <- lm(Att_Ave ~ topic1 + topic2 + topic3 + topic4, 
            data = weighted_scores)
-mod2 %>%
-  summary() 
+
+ 
 anova(mod1, mod2)
 
+mod2 %>%
+  summary()
 
 ```
 
