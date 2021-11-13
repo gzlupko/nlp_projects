@@ -306,3 +306,11 @@ mod2 %>%
 
 
 
+
+structural topic model (to insert)
+```{r}
+library(stm) 
+```
+
+
+
