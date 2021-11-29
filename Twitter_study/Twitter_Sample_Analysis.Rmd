@@ -1,0 +1,29 @@
+---
+title: "Twitter_Sample_Snalysis"
+output: html_notebook
+---
+
+
+
+```{r Libraries, include = F}
+library(tidytext) 
+library(tidyverse)
+library(topicmodels) 
+library(ldatuning)
+```
+
+
+```{r File-Path}
+
+setwd("/Users/gianzlupko/Desktop/WFH_Study/Tweet_Database/API_V2") 
+```
+
+
+
+```{r Import-Data}
+
+
+
+
+```
+
