@@ -1,10 +1,12 @@
 
 # load library for Academic API endpoint 
+#devtools::dev_mode(on=T) # run if dev mode needed for dev version of academictwitteR for exact_phrase
 library(academictwitteR) 
 library(tidyverse)
 
 
-dev_mode(on=T)
+
+
 
 
 # store bearer in .Renviron as needed
@@ -35,10 +37,10 @@ search_terms <- build_query(query = terms,
 
 wfh_df <- get_all_tweets(
   query = search_terms,
-  exact_phrase = T,
-  "2020-06-19T00:00:00Z",
   "2020-06-20T00:00:00Z",
+  "2020-06-21T00:00:00Z",
   n = 500)
+
 
 # subset the data frame to only contain non-commercial twitter sources 
 wfh_sub <- wfh_df %>% 
