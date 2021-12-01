@@ -1,5 +1,5 @@
 ---
-title: "Twitter_Sample_Snalysis"
+title: "Twitter_Sample_Analysis"
 output: html_notebook
 ---
 
@@ -10,20 +10,128 @@ library(tidytext)
 library(tidyverse)
 library(topicmodels) 
 library(ldatuning)
+library(textstem) 
+library(SnowballC) 
 ```
 
 
-```{r File-Path}
+```{r Import-Data, include = F}
+dat <- read_csv("wfh_twitter_data.csv")
 
-setwd("/Users/gianzlupko/Desktop/WFH_Study/Tweet_Database/API_V2") 
+
+```
+
+
+
+
+```{r Data-Cleaning}
+
+# set first column as row_id
+twitter_data <- dat %>%
+  rename(row_id = X1) %>%
+  filter(!row_id == "author_id")
+# remove twitter-specific stop words
+
+twitter_cleaned <- twitter_data %>%
+   filter(!grepl("t.co", text)) %>%
+   filter(!grepl("https", text)) %>%
+  filter(!grepl("i'm", text)) %>%
+  filter(!grepl("amp", text)) 
+
 ```
 
 
 
-```{r Import-Data}
+
+```{r Topic-Modeling}
+
+# create dtm for TM; remove stop words
 
 
+
+twitter_dtm <- twitter_cleaned %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(row_id, word) %>%
+  cast_dtm(document = row_id, term = word, value = n) %>%
+  as.matrix() 
+
+              
+
+# determine ideal number of topic models; visualize
+# first, using just the Cao et al. 2009 method via Finch et al. (2019)
+# the Cao 2009 method minmizes density 
+
+seed<- 59127
+number_topics <- FindTopicsNumber(
+  twitter_dtm,
+  topics = seq(from = 2, to = 12, by = 1),
+  metrics = c("CaoJuan2009"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+# it appears that an optimal number of topics are 2 or 6
+FindTopicsNumber_plot(reasons_gibbs) 
+
+
+
+# identify k topics again using the broader list of metrics
+result <- FindTopicsNumber(
+  reasons_dtm,
+  topics = seq(from = 2, to = 15, by = 1),
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "VEM",
+  control = list(seed = 831),
+  mc.cores = 2L,
+  verbose = TRUE)
+
+FindTopicsNumber_plot(result)
 
 
 ```
+
+
+
+
+
+
+```{r}
+# run a correlated topic model with k = 4
+ctm_1 <- CTM(twitter_dtm, 
+    k = 4, 
+    method = "VEM")
+
+# create similar LDA 
+
+#lda_six <- LDA(reasons_dtm,k = 6) 
+
+# tidy the CTM model output 
+
+twitter_ctm_topics <- ctm_1 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta)) 
+
+twitter_ctm_topics
+
+# arrange top 15 terms by each topic 
+
+twitter_word_probs<- twitter_ctm_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+twitter_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12)) 
+```
+
+
 
