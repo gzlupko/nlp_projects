@@ -12,6 +12,8 @@ library(topicmodels)
 library(ldatuning)
 library(textstem) 
 library(SnowballC) 
+library(tm)
+library(car) 
 ```
 
 
@@ -30,13 +32,39 @@ dat <- read_csv("wfh_twitter_data.csv")
 twitter_data <- dat %>%
   rename(row_id = X1) %>%
   filter(!row_id == "author_id")
-# remove twitter-specific stop words
 
+
+# Convert to basic ASCII text to avoid meaningless characters
+twitter_data$text <- as.character(twitter_data$text) 
+twitter_data$text <- iconv(twitter_data$text, to = "ASCII", sub = " ")  
+
+twitter_data$text <- gsub("(RT|via)((?:\\b\\W*@\\w+)+)", "", twitter_data$text)  # Remove the "RT" (retweet) and usernames 
+twitter_data$text <- gsub("http.+ |http.+$", " ", twitter_data$text)  # Remove html links
+twitter_data$text <- gsub("http[[:alnum:]]*", "", twitter_data$text)
+twitter_data$text <- gsub("[[:punct:]]", " ", twitter_data$text)  # Remove punctuation
+twitter_data$text <- gsub("[ |\t]{2,}", " ", twitter_data$text)  # Remove tabs
+twitter_data$text <- gsub("^ ", "", twitter_data$text)  # Leading blanks
+twitter_data$text <- gsub(" $", "", twitter_data$text)  # Lagging blanks
+twitter_data$text <- gsub(" +", " ", twitter_data$text) # General spaces 
+twitter_data$text <- gsub('[[:digit:]]+', '', twitter_data$text)
+
+# additional filtering 
+twitter_data$text <- tolower(twitter_data$text)
+
+
+
+# remove twitter-specific stop words
 twitter_cleaned <- twitter_data %>%
    filter(!grepl("t.co", text)) %>%
    filter(!grepl("https", text)) %>%
   filter(!grepl("i'm", text)) %>%
-  filter(!grepl("amp", text)) 
+  filter(!grepl("amp", text)) %>%
+  filter(!grepl("it's", text)) %>%
+  filter(!grepl("don't", text)) %>%
+  filter(!grepl("can't", text))
+
+
+
 
 ```
 
@@ -46,8 +74,6 @@ twitter_cleaned <- twitter_data %>%
 ```{r Topic-Modeling}
 
 # create dtm for TM; remove stop words
-
-
 
 twitter_dtm <- twitter_cleaned %>%
   unnest_tokens(word, text) %>%
@@ -75,7 +101,7 @@ number_topics <- FindTopicsNumber(
 )
 
 # it appears that an optimal number of topics are 2 or 6
-FindTopicsNumber_plot(reasons_gibbs) 
+FindTopicsNumber_plot(number_topics) 
 
 
 
@@ -121,7 +147,7 @@ twitter_ctm_topics
 
 twitter_word_probs<- twitter_ctm_topics %>%
   group_by(topic) %>%
-  slice_max(beta, n = 10) %>% 
+  slice_max(beta, n = 15) %>% 
   ungroup() %>%
   arrange(topic, -beta)
 
@@ -132,6 +158,73 @@ twitter_word_probs %>%
   facet_wrap(~ topic, scales = "free") +
   scale_y_reordered() + theme(axis.text=element_text(size=12)) 
 ```
+
+
+
+```{r}
+# assign topic from CTM to observations 
+# use the function topics() from topicmodels library to assign the most
+# likely topics for each document (in this case combined reasons) 
+
+ctm_assignments <- data.frame(topics(ctm_1)) 
+ctm_assignments$row_id <- rownames(ctm_assignments) 
+colnames(ctm_assignments) <- c("topic_assigned", "row_id") 
+
+# join topic assignment outputs with original data set using dyply's inner_join() 
+
+topics_assigned <- inner_join(x = twitter_cleaned, 
+           y = ctm_assignments, 
+           by = "row_id") 
+  
+# check distribution of topics assigned
+# shows even split between two topics 
+table(topics_assigned$topic_assigned) 
+```
+
+
+```{r Dummy-Coding}
+table(topics_assigned$topic_assigned) 
+
+# for a 4 topic solution
+# note: this will change based on the optimal number of topics identified above 
+# in the study, the topic model will first be run and inter-rater reliability
+# will be calculated before this step below, where the topics are assigned back 
+# to the data set 
+
+topics_assigned$topic_1 <- ifelse(topics_assigned$topic_assigned == '1', 1, 0)
+topics_assigned$topic_2 <- ifelse(topics_assigned$topic_assigned == '2', 1, 0)
+topics_assigned$topic_3 <- ifelse(topics_assigned$topic_assigned == '3', 1, 0)
+topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
+
+```
+
+
+```{r}
+
+topics_assigned$topic_factor <- factor(x = topics_assigned$topic_assigned, 
+                          levels = c(1, 2, 3, 4),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4")) 
+
+# model comparison 
+
+lmF <- lm(like_count ~ topic_factor, 
+          data = topics_assigned) 
+lmF %>%
+  summary() 
+
+```
+
+
+
+```{r}
+
+lm(like_count ~ topic_2 + topic_3 + topic_4, 
+   data = topics_assigned) %>%
+  summary() 
+
+
+```
+
 
 
 
