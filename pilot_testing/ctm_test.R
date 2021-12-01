@@ -164,4 +164,4 @@ lda_two_probabilities <- lda_two_probabilities[ , c(3,1,2)]
 # BRT variables 
 
 
-
+# test connnect after changing folder name
