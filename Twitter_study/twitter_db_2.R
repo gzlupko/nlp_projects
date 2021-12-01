@@ -63,7 +63,7 @@ df_export <- wfh_metrics %>%
          reply_count, like_count, quote_count) 
 
 
-write.table(df_export, "/Users/gianzlupko/Desktop/WFH_Study/Tweet_Database/API_V2/wfh_twitter_data.csv", 
+write.table(df_export, "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Twitter_Study/wfh_twitter_data.csv", 
             append = T, row.names = T, col.names = T, sep = ",") 
 
 
