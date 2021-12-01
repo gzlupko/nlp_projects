@@ -20,7 +20,6 @@ library(car)
 ```{r Import-Data, include = F}
 dat <- read_csv("wfh_twitter_data.csv")
 
-
 ```
 
 
@@ -61,7 +60,14 @@ twitter_cleaned <- twitter_data %>%
   filter(!grepl("amp", text)) %>%
   filter(!grepl("it's", text)) %>%
   filter(!grepl("don't", text)) %>%
-  filter(!grepl("can't", text))
+  filter(!grepl("can't", text)) %>%
+  filter(!grepl("home from work", text)) %>%
+  filter(!grepl("IL", text)) %>%
+  filter(!grepl("II", text)) %>%
+  filter(!grepl("lol", text)) %>%
+  filter(!grepl("didn", text)) %>%
+  filter(!grepl("ain", text)) %>%
+  filter(!grepl("ve", text))
 
 
 
@@ -128,7 +134,7 @@ FindTopicsNumber_plot(result)
 ```{r}
 # run a correlated topic model with k = 4
 ctm_1 <- CTM(twitter_dtm, 
-    k = 4, 
+    k = 8, 
     method = "VEM")
 
 # create similar LDA 
@@ -159,6 +165,15 @@ twitter_word_probs %>%
   scale_y_reordered() + theme(axis.text=element_text(size=12)) 
 ```
 
+
+
+
+```{r Common-Words}
+
+
+
+
+```
 
 
 ```{r}
@@ -196,14 +211,49 @@ topics_assigned$topic_2 <- ifelse(topics_assigned$topic_assigned == '2', 1, 0)
 topics_assigned$topic_3 <- ifelse(topics_assigned$topic_assigned == '3', 1, 0)
 topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
 
+topics_assigned$topic_5 <- ifelse(topics_assigned$topic_assigned == '5', 1, 0)
+
+topics_assigned$topic_6 <- ifelse(topics_assigned$topic_assigned == '6', 1, 0)
+
+topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
+
+topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
+
+
 ```
 
 
-```{r}
+Before running analyses
+```{r Data-Cleaning-2}
 
+
+# create factor variable (alternative to manual dummy coding above)
 topics_assigned$topic_factor <- factor(x = topics_assigned$topic_assigned, 
-                          levels = c(1, 2, 3, 4),
-                          labels = c("Topic1", "Topic2", "Topic3", "Topic4")) 
+                          levels = c(1, 2, 3, 4, 5, 6, 7, 8),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6", "Topic7", "Topic8")) 
+
+
+
+# check data class for count data - likes and retweets
+# remove all NA values from a
+table(is.na(topics_assigned$like_count)) 
+
+
+
+# convert retweet_count and reply_count fields to numeric 
+
+topics_assigned$retweet_count <- as.numeric(topics_assigned$retweet_count) 
+table(is.na(topics_assigned$retweet_count)) 
+
+topics_assigned$reply_count <- as.numeric(topics_assigned$reply_count) 
+table(is.na(topics_assigned$reply_count)) 
+
+```
+
+
+
+```{r Regression}
+
 
 # model comparison 
 
@@ -211,6 +261,20 @@ lmF <- lm(like_count ~ topic_factor,
           data = topics_assigned) 
 lmF %>%
   summary() 
+
+lm_reduced <- lm(like_count ~ 1, data = topics_assigned) 
+anova(lm_reduced) 
+
+lm_topics <- lm(like_count ~ 1 + topic_factor, 
+              data = topics_assigned) 
+
+anova(lm_topics)   
+anova(lm_reduced, lm_topics)
+summary(lm_topics) 
+lm_full %>% summary()  
+
+mod_comparison_1 <- anova(lm_reply, lm_full)
+mod_comparison_1 
 
 ```
 
