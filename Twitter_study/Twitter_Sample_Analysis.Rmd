@@ -145,7 +145,7 @@ FindTopicsNumber_plot(result)
 ```{r}
 # run a correlated topic model with k = 4
 ctm_1 <- CTM(twitter_dtm, 
-    k = 8, 
+    k = 6, 
     method = "VEM")
 
 # create similar LDA 
@@ -223,9 +223,9 @@ topics_assigned$topic_5 <- ifelse(topics_assigned$topic_assigned == '5', 1, 0)
 
 topics_assigned$topic_6 <- ifelse(topics_assigned$topic_assigned == '6', 1, 0)
 
-topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
+#topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
 
-topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
+#topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
 
 
 ```
@@ -237,8 +237,8 @@ Before running analyses
 
 # create factor variable (alternative to manual dummy coding above)
 topics_assigned$topic_factor <- factor(x = topics_assigned$topic_assigned, 
-                          levels = c(1, 2, 3, 4, 5, 6, 7, 8),
-                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6", "Topic7", "Topic8")) 
+                          levels = c(1, 2, 3, 4, 5, 6),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6")) 
 
 
 
