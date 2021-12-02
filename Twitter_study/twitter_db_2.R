@@ -37,8 +37,8 @@ search_terms <- build_query(query = terms,
 
 wfh_df <- get_all_tweets(
   query = search_terms,
-  "2020-06-20T00:00:00Z",
-  "2020-06-21T00:00:00Z",
+  "2020-08-01T00:00:00Z",
+  "2020-08-02T00:00:00Z",
   n = 500)
 
 
