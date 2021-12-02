@@ -70,7 +70,9 @@ twitter_cleaned <- twitter_data %>%
   filter(!grepl("ve", text))
 
 
+# convert specific fields to appropriate data type 
 
+twitter_cleaned$like_count <- as.numeric(twitter_cleaned$like_count) 
 
 ```
 
@@ -145,9 +147,7 @@ ctm_1 <- CTM(twitter_dtm,
 
 twitter_ctm_topics <- ctm_1 %>%
   tidy(matrix = "beta") %>%
-  arrange(desc(beta)) 
-
-twitter_ctm_topics
+  arrange(desc(beta))
 
 # arrange top 15 terms by each topic 
 
@@ -163,14 +163,13 @@ twitter_word_probs %>%
   geom_col(show.legend = FALSE) +
   facet_wrap(~ topic, scales = "free") +
   scale_y_reordered() + theme(axis.text=element_text(size=12)) 
+
 ```
 
 
 
 
 ```{r Common-Words}
-
-
 
 
 ```
@@ -254,6 +253,10 @@ table(is.na(topics_assigned$reply_count))
 
 ```{r Regression}
 
+# standardized outcome variable 
+std_topic_df <- topics_assigned %>% 
+  mutate(std_likes <- scale(like_count)) 
+
 
 # model comparison 
 
@@ -261,6 +264,7 @@ lmF <- lm(like_count ~ topic_factor,
           data = topics_assigned) 
 lmF %>%
   summary() 
+
 
 lm_reduced <- lm(like_count ~ 1, data = topics_assigned) 
 anova(lm_reduced) 
@@ -280,13 +284,21 @@ mod_comparison_1
 
 
 
-```{r}
+```{r Standardized-Beta-Values}
 
-lm(like_count ~ topic_2 + topic_3 + topic_4, 
-   data = topics_assigned) %>%
-  summary() 
+stdcoeff <- function(dataset = dat, 
+                     predictor = x, 
+                     outcome =y) { 
+  
+  dat$standard_y <- scale(dat$y)
+  dat$standard_x <- scale(dat$x)
+  
+  }
 
 
+
+
+class(topics_assigned$like_count) 
 ```
 
 
