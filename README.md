@@ -1,6 +1,17 @@
 # NLP Code for Dynamic Network Lab Research
 
 
+
+
+## Table of Contents 
+* [Course Overview](#Course-Overview) 
+* [Labs](#Labs)
+* [Sample Data Visualizations](#Sample-Data-Visualizations)
+* [Useful Code](#Useful-Code)
+
+
+
+
 **NLP code repo for DNL research**
 
 
