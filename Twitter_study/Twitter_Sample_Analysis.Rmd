@@ -82,15 +82,24 @@ twitter_cleaned$like_count <- as.numeric(twitter_cleaned$like_count)
 ```{r Topic-Modeling}
 
 # create dtm for TM; remove stop words
-
+# using stemming 
 twitter_dtm <- twitter_cleaned %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+    mutate(stem = wordStem(word)) %>%
+  count(row_id, stem) %>%
+  cast_dtm(document = row_id, term = stem, value = n) %>%
+  as.matrix()  
+
+# not stem
+#twitter_dtm <- twitter_cleaned %>%
   unnest_tokens(word, text) %>%
   anti_join(stop_words) %>%
   count(row_id, word) %>%
   cast_dtm(document = row_id, term = word, value = n) %>%
-  as.matrix() 
+  as.matrix()
 
-              
+         
 
 # determine ideal number of topic models; visualize
 # first, using just the Cao et al. 2009 method via Finch et al. (2019)
