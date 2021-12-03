@@ -52,8 +52,8 @@ twitter_data$text <- gsub('[[:digit:]]+', '', twitter_data$text)
 # additional filtering 
 twitter_data$text <- tolower(twitter_data$text)
 
-twitter_data %>%
-   sample_n(10000) 
+twitter_cleaned <- twitter_data %>%
+   sample_n(1000) 
 
 
 
@@ -158,7 +158,7 @@ FindTopicsNumber_plot(result)
 ```{r}
 # run a correlated topic model with k =  
 ctm_1 <- CTM(twitter_dtm, 
-    k = 12, 
+    k = 8, 
     method = "VEM")
 
 # create similar LDA 
@@ -236,9 +236,9 @@ topics_assigned$topic_5 <- ifelse(topics_assigned$topic_assigned == '5', 1, 0)
 
 topics_assigned$topic_6 <- ifelse(topics_assigned$topic_assigned == '6', 1, 0)
 
-#topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
+topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
 
-#topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
+topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
 
 
 ```
@@ -250,8 +250,9 @@ Before running analyses
 
 # create factor variable (alternative to manual dummy coding above)
 topics_assigned$topic_factor <- factor(x = topics_assigned$topic_assigned, 
-                          levels = c(1, 2, 3, 4, 5, 6),
-                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6")) 
+                          levels = c(1, 2, 3, 4, 5, 6, 7, 8),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6", 
+                                     "Topic7", "Topic8")) 
 
 
 
@@ -276,6 +277,7 @@ table(is.na(topics_assigned$reply_count))
 ```{r Regression}
 
 # standardized outcome variable 
+topics_assigned$like_count <- as.numeric(topics_assigned$like_count) 
 std_topic_df <- topics_assigned %>% 
   mutate(std_likes <- scale(like_count)) 
 
@@ -315,15 +317,45 @@ To generate meaningfully differentiated topics
 # set a min and max threshold for input into topic model 
 # view top terms in corpus
 twitter_ctm_topics %>%
-  mutate(total = beta*length(term)) %>%
-  filter(total > 500)
+  mutate(total = beta*length(term))
 
 
 # str_remove_all() 
 twitter_2 <- twitter_cleaned %>%
-  mutate(text1 = str_remove_all(text, " home | amp | return"))  
+  mutate(text1 = str_remove_all(text, " home | amp | II | don | dai"))  
 
 
+dtm_2 <- twitter_2 %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+    mutate(stem = wordStem(word)) %>%
+  count(row_id, stem) %>%
+  cast_dtm(document = row_id, term = stem, value = n) %>%
+  as.matrix()  
+
+ctm_2 <- CTM(dtm_2, 
+    k = 8, 
+    method = "VEM")
+
+
+ctm_2_topics <- ctm_2 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_2_word_probs<- ctm_2_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_2_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12))
 
 ```
 
