@@ -49,17 +49,21 @@ twitter_data$text <- gsub('[[:digit:]]+', '', twitter_data$text)
 
 
 
-# additional filtering 
-twitter_data$text <- tolower(twitter_data$text)
+# additional filtering steps: 
+twitter_data$text <- tolower(twitter_data$text) # text to lower case 
 
+
+
+# remove twitter specific stop words 
 twitter_cleaned <- twitter_data %>%
-   sample_n(1000) 
-
-
-
+  mutate(cleaned = 
+           str_remove_all(text, "t.co | https | i'm | amp | it's | don't | can't | 
+                          home from work | IL | II | lol | didn't | ain't | 
+                          ve | doesn't | at | i"))    
 
 # remove twitter-specific stop words
-#twitter_cleaned <- twitter_data %>%
+#
+twitter_cleaned <- twitter_data %>%
    filter(!grepl("t.co", text)) %>%
    filter(!grepl("https", text)) %>%
   filter(!grepl("i'm", text)) %>%
@@ -78,6 +82,12 @@ twitter_cleaned <- twitter_data %>%
   filter(!grepl("at", text)) %>%
   filter(!grepl("ii", text))
 
+
+   
+# generate random sample of tweets to limit size
+twitter_cleaned <- twitter_data %>%
+   sample_n(1000) 
+   
 # convert specific fields to appropriate data type 
 
 twitter_cleaned$like_count <- as.numeric(twitter_cleaned$like_count) 
