@@ -47,13 +47,19 @@ twitter_data$text <- gsub(" $", "", twitter_data$text)  # Lagging blanks
 twitter_data$text <- gsub(" +", " ", twitter_data$text) # General spaces 
 twitter_data$text <- gsub('[[:digit:]]+', '', twitter_data$text)
 
+
+
 # additional filtering 
 twitter_data$text <- tolower(twitter_data$text)
+
+twitter_data %>%
+   sample_n(10000) 
+
 
 
 
 # remove twitter-specific stop words
-twitter_cleaned <- twitter_data %>%
+#twitter_cleaned <- twitter_data %>%
    filter(!grepl("t.co", text)) %>%
    filter(!grepl("https", text)) %>%
   filter(!grepl("i'm", text)) %>%
@@ -67,18 +73,22 @@ twitter_cleaned <- twitter_data %>%
   filter(!grepl("lol", text)) %>%
   filter(!grepl("didn", text)) %>%
   filter(!grepl("ain", text)) %>%
-  filter(!grepl("ve", text))
-
+  filter(!grepl("ve", text)) %>%
+  filter(!grepl("doesn", text)) %>%
+  filter(!grepl("at", text)) %>%
+  filter(!grepl("ii", text))
 
 # convert specific fields to appropriate data type 
 
 twitter_cleaned$like_count <- as.numeric(twitter_cleaned$like_count) 
 
+
+
 ```
 
 
 
-
+Initial topic modeling 
 ```{r Topic-Modeling}
 
 # create dtm for TM; remove stop words
@@ -90,6 +100,9 @@ twitter_dtm <- twitter_cleaned %>%
   count(row_id, stem) %>%
   cast_dtm(document = row_id, term = stem, value = n) %>%
   as.matrix()  
+
+
+
 
 # not stem
 #twitter_dtm <- twitter_cleaned %>%
@@ -108,7 +121,7 @@ twitter_dtm <- twitter_cleaned %>%
 seed<- 59127
 number_topics <- FindTopicsNumber(
   twitter_dtm,
-  topics = seq(from = 2, to = 12, by = 1),
+  topics = seq(from = 2, to = 25, by = 1),
   metrics = c("CaoJuan2009"),
   method = "GIBBS",
   
@@ -143,9 +156,9 @@ FindTopicsNumber_plot(result)
 
 
 ```{r}
-# run a correlated topic model with k = 4
+# run a correlated topic model with k =  
 ctm_1 <- CTM(twitter_dtm, 
-    k = 6, 
+    k = 12, 
     method = "VEM")
 
 # create similar LDA 
@@ -292,22 +305,26 @@ mod_comparison_1
 ```
 
 
+Set maximum threshold for word frequency.
+Words that occur too often across tweets are likely to reduce the model's ability 
+To generate meaningfully differentiated topics 
 
-```{r Standardized-Beta-Values}
+```{r Word-Min-Max-Threshold}
 
-stdcoeff <- function(dataset = dat, 
-                     predictor = x, 
-                     outcome =y) { 
-  
-  dat$standard_y <- scale(dat$y)
-  dat$standard_x <- scale(dat$x)
-  
-  }
+# twitter_cleaned ; df originally fed into first TM above 
+# set a min and max threshold for input into topic model 
+# view top terms in corpus
+twitter_ctm_topics %>%
+  mutate(total = beta*length(term)) %>%
+  filter(total > 500)
 
 
+# str_remove_all() 
+twitter_2 <- twitter_cleaned %>%
+  mutate(text1 = str_remove_all(text, " home | amp | return"))  
 
 
-class(topics_assigned$like_count) 
+
 ```
 
 
