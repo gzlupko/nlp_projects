@@ -52,7 +52,7 @@ twitter_data$text <- gsub('[[:digit:]]+', '', twitter_data$text)
 # additional filtering steps: 
 twitter_data$text <- tolower(twitter_data$text) # text to lower case 
 
-
+# check remove duplicate tweets 
 
 # remove twitter specific stop words 
 twitter_cleaned <- twitter_data %>%
@@ -86,7 +86,7 @@ twitter_cleaned <- twitter_data %>%
    
 # generate random sample of tweets to limit size
 twitter_cleaned <- twitter_data %>%
-   sample_n(1000) 
+   sample_n(500) 
    
 # convert specific fields to appropriate data type 
 
@@ -168,7 +168,7 @@ FindTopicsNumber_plot(result)
 ```{r}
 # run a correlated topic model with k =  
 ctm_1 <- CTM(twitter_dtm, 
-    k = 8, 
+    k = 1, 
     method = "VEM")
 
 # create similar LDA 
@@ -196,7 +196,14 @@ twitter_word_probs %>%
   facet_wrap(~ topic, scales = "free") +
   scale_y_reordered() + theme(axis.text=element_text(size=12)) 
 
+
+twitter_ctm_topics %>% count(term)
 ```
+
+
+
+
+
 
 
 
