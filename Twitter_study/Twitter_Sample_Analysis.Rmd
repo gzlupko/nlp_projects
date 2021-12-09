@@ -19,7 +19,6 @@ library(car)
 
 ```{r Import-Data, include = F}
 dat <- read_csv("wfh_twitter_data.csv")
-
 ```
 
 
@@ -48,50 +47,32 @@ twitter_data$text <- gsub(" +", " ", twitter_data$text) # General spaces
 twitter_data$text <- gsub('[[:digit:]]+', '', twitter_data$text)
 
 
-
 # additional filtering steps: 
 twitter_data$text <- tolower(twitter_data$text) # text to lower case 
 
-# check remove duplicate tweets 
+# create vector of strings to remove from tweets 
 
-# remove twitter specific stop words 
-twitter_cleaned <- twitter_data %>%
-  mutate(cleaned = 
-           str_remove_all(text, "t.co | https | i'm | amp | it's | don't | can't | 
-                          home from work | IL | II | lol | didn't | ain't | 
-                          ve | doesn't | at | i"))    
+#text_remove <- c("t.co, https, i'm, amp, it's, don't, can't, 
+#home from work, IL, II, lol, didn't, ain't, doesn't, at, i")
 
-# remove twitter-specific stop words
-#
-twitter_cleaned <- twitter_data %>%
-   filter(!grepl("t.co", text)) %>%
-   filter(!grepl("https", text)) %>%
-  filter(!grepl("i'm", text)) %>%
-  filter(!grepl("amp", text)) %>%
-  filter(!grepl("it's", text)) %>%
-  filter(!grepl("don't", text)) %>%
-  filter(!grepl("can't", text)) %>%
-  filter(!grepl("home from work", text)) %>%
-  filter(!grepl("IL", text)) %>%
-  filter(!grepl("II", text)) %>%
-  filter(!grepl("lol", text)) %>%
-  filter(!grepl("didn", text)) %>%
-  filter(!grepl("ain", text)) %>%
-  filter(!grepl("ve", text)) %>%
-  filter(!grepl("doesn", text)) %>%
-  filter(!grepl("at", text)) %>%
-  filter(!grepl("ii", text))
 
+# The words to remove are bound with \\b so that they are not removed from the 
+#beginning, middle, or end or other words
+
+#twitter_cleaned <- twitter_data%>%   
+  mutate(tweets_cleaned = 
+           str_remove_all(text, 
+          regex(str_c("\\b",text_remove, "\\b", collapse = '|'), 
+          ignore_case = T)))
 
    
-# generate random sample of tweets to limit size
+#generate random sample of tweets to limit size
 twitter_cleaned <- twitter_data %>%
-   sample_n(500) 
+   sample_n(1000) 
    
 # convert specific fields to appropriate data type 
 
 twitter_cleaned$like_count <- as.numeric(twitter_cleaned$like_count) 
-
 
 
 ```
@@ -112,8 +93,6 @@ twitter_dtm <- twitter_cleaned %>%
   as.matrix()  
 
 
-
-
 # not stem
 #twitter_dtm <- twitter_cleaned %>%
   unnest_tokens(word, text) %>%
@@ -122,7 +101,6 @@ twitter_dtm <- twitter_cleaned %>%
   cast_dtm(document = row_id, term = word, value = n) %>%
   as.matrix()
 
-         
 
 # determine ideal number of topic models; visualize
 # first, using just the Cao et al. 2009 method via Finch et al. (2019)
@@ -164,11 +142,10 @@ FindTopicsNumber_plot(result)
 
 
 
-
 ```{r}
 # run a correlated topic model with k =  
 ctm_1 <- CTM(twitter_dtm, 
-    k = 1, 
+    k = 6, 
     method = "VEM")
 
 # create similar LDA 
@@ -199,9 +176,6 @@ twitter_word_probs %>%
 
 twitter_ctm_topics %>% count(term)
 ```
-
-
-
 
 
 
@@ -253,9 +227,9 @@ topics_assigned$topic_5 <- ifelse(topics_assigned$topic_assigned == '5', 1, 0)
 
 topics_assigned$topic_6 <- ifelse(topics_assigned$topic_assigned == '6', 1, 0)
 
-topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
+#topics_assigned$topic_7 <- ifelse(topics_assigned$topic_assigned == '7', 1, 0)
 
-topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
+#topics_assigned$topic_8 <- ifelse(topics_assigned$topic_assigned == '8', 1, 0)
 
 
 ```
@@ -267,9 +241,8 @@ Before running analyses
 
 # create factor variable (alternative to manual dummy coding above)
 topics_assigned$topic_factor <- factor(x = topics_assigned$topic_assigned, 
-                          levels = c(1, 2, 3, 4, 5, 6, 7, 8),
-                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6", 
-                                     "Topic7", "Topic8")) 
+                          levels = c(1, 2, 3, 4, 5, 6),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6")) 
 
 
 
@@ -337,13 +310,24 @@ twitter_ctm_topics %>%
   mutate(total = beta*length(term))
 
 
-# str_remove_all() 
-twitter_2 <- twitter_cleaned %>%
-  mutate(text1 = str_remove_all(text, " home | amp | II | don | dai"))  
 
+threshold_remove <- c() 
+
+threshold_remove <- c("home", "amp", "return", "il", "II", "dai", 
+                      "remot")
+
+twitter_2 <- twitter_data %>%   
+  mutate(tweets_cleaned = 
+           str_remove_all(text, 
+          regex(str_c("\\b",threshold_remove, "\\b", collapse = '|'), 
+          ignore_case = T)))
+
+# random sample of twitter_2 after removing threshold 
+twitter_2 <- twitter_2 %>%
+  sample_n(700)
 
 dtm_2 <- twitter_2 %>%
-  unnest_tokens(word, text) %>%
+  unnest_tokens(word, tweets_cleaned) %>%
   anti_join(stop_words) %>%
     mutate(stem = wordStem(word)) %>%
   count(row_id, stem) %>%
@@ -351,7 +335,7 @@ dtm_2 <- twitter_2 %>%
   as.matrix()  
 
 ctm_2 <- CTM(dtm_2, 
-    k = 8, 
+    k = 6, 
     method = "VEM")
 
 
