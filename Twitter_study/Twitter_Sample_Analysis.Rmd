@@ -68,7 +68,7 @@ twitter_data$text <- tolower(twitter_data$text) # text to lower case
    
 #generate random sample of tweets to limit size
 twitter_cleaned <- twitter_data %>%
-   sample_n(1000) 
+   sample_n(700) 
    
 # convert specific fields to appropriate data type 
 
@@ -109,7 +109,7 @@ twitter_dtm <- twitter_cleaned %>%
 seed<- 59127
 number_topics <- FindTopicsNumber(
   twitter_dtm,
-  topics = seq(from = 2, to = 25, by = 1),
+  topics = seq(from = 2, to = 15, by = 1),
   metrics = c("CaoJuan2009"),
   method = "GIBBS",
   
@@ -145,7 +145,7 @@ FindTopicsNumber_plot(result)
 ```{r}
 # run a correlated topic model with k =  
 ctm_1 <- CTM(twitter_dtm, 
-    k = 6, 
+    k = 5, 
     method = "VEM")
 
 # create similar LDA 
@@ -241,8 +241,8 @@ Before running analyses
 
 # create factor variable (alternative to manual dummy coding above)
 topics_assigned$topic_factor <- factor(x = topics_assigned$topic_assigned, 
-                          levels = c(1, 2, 3, 4, 5, 6),
-                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5", "Topic6")) 
+                          levels = c(1, 2, 3, 4, 5),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5")) 
 
 
 
@@ -310,11 +310,9 @@ twitter_ctm_topics %>%
   mutate(total = beta*length(term))
 
 
-
-threshold_remove <- c() 
-
+# define terms to remove based on over use or under use 
 threshold_remove <- c("home", "amp", "return", "il", "II", "dai", 
-                      "remot")
+                      "remote", "daily", "office", "people", "job")
 
 twitter_2 <- twitter_data %>%   
   mutate(tweets_cleaned = 
@@ -324,8 +322,9 @@ twitter_2 <- twitter_data %>%
 
 # random sample of twitter_2 after removing threshold 
 twitter_2 <- twitter_2 %>%
-  sample_n(700)
+  sample_n(1000)
 
+# with stem
 dtm_2 <- twitter_2 %>%
   unnest_tokens(word, tweets_cleaned) %>%
   anti_join(stop_words) %>%
@@ -334,24 +333,24 @@ dtm_2 <- twitter_2 %>%
   cast_dtm(document = row_id, term = stem, value = n) %>%
   as.matrix()  
 
-ctm_2 <- CTM(dtm_2, 
-    k = 6, 
+lda_1 <- LDA(dtm_2, 
+    k = 5, 
     method = "VEM")
 
 
-ctm_2_topics <- ctm_2 %>%
+lda_1_topics <- lda_1 %>%
   tidy(matrix = "beta") %>%
   arrange(desc(beta))
 
 # arrange top 15 terms by each topic 
 
-ctm_2_word_probs<- ctm_2_topics %>%
+lda_1_word_probs<- lda_1_topics %>%
   group_by(topic) %>%
   slice_max(beta, n = 15) %>% 
   ungroup() %>%
   arrange(topic, -beta)
 
-ctm_2_word_probs %>%
+lda_1_word_probs %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
   ggplot(aes(beta, term, fill = factor(topic))) +
   geom_col(show.legend = FALSE) +
@@ -360,6 +359,47 @@ ctm_2_word_probs %>%
 
 ```
 
+
+```{r Regression-Analysis2}
+
+lda_1_assignments <- data.frame(topics(lda_1)) 
+lda_1_assignments$row_id <- rownames(lda_1_assignments) 
+colnames(lda_1_assignments) <- c("topic_assigned", "row_id") 
+
+# join topic assignment outputs with original data set using dyply's inner_join() 
+
+topics_assigned_1 <- inner_join(x = twitter_2, 
+           y = lda_1_assignments, 
+           by = "row_id") 
+
+
+topics_assigned_1$topic_1 <- ifelse(topics_assigned_1$topic_assigned == '1', 1, 0)
+topics_assigned_1$topic_2 <- ifelse(topics_assigned_1$topic_assigned == '2', 1, 0)
+topics_assigned_1$topic_3 <- ifelse(topics_assigned_1$topic_assigned == '3', 1, 0)
+topics_assigned_1$topic_4 <- ifelse(topics_assigned_1$topic_assigned == '4', 1, 0)
+topics_assigned_1$topic_5 <- ifelse(topics_assigned_1$topic_assigned == '5', 1, 0)
+
+#topics_assigned_1$topic_6 <- ifelse(topics_assigned_1$topic_assigned == '6', 1, 0)
+
+#topics_assigned_1$topic_7 <- ifelse(topics_assigned_1$topic_assigned == '7', 
+
+
+# create factor for topic assigned 
+topics_assigned_1$topic_factor <- factor(x = topics_assigned_1$topic_assigned, 
+                          levels = c(1, 2, 3, 4, 5),
+                          labels = c("Topic1", "Topic2", "Topic3", "Topic4", "Topic5")) 
+
+# run omnibus test of like count regressed on topic factor; 
+#null is that there is no difference in likes by topic 
+lmF_1 <- lm(like_count ~ topic_factor, 
+          data = topics_assigned_1) 
+lmF_1 %>%
+  summary() 
+
+
+
+
+```
 
 
 
