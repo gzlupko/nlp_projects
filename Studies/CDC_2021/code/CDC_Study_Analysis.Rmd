@@ -214,6 +214,47 @@ ctm_2_word_probs %>%
 
 
 
+```{r 4-and-5-topic-ctm}
+
+ctm_3 <- CTM(dtm_1, 
+    k = 4, 
+    method = "VEM")
+
+
+# create function to store new data objects related to subjective review of model output 
+
+word_probs <- function(mod, k) { 
+  
+  ctm_k_topics <- mod %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_k_word_probs <- ctm_k_topics  %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_k_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12))
+  
+
+  }
+
+
+word_probs(mod = ctm_3, k = 3) 
+
+
+
+
+
+```
 
 
 
