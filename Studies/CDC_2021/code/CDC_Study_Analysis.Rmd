@@ -5,6 +5,225 @@ output: html_notebook
 
 Data analysis related to CDC compliance behaviors (2021) 
 
-```{r Libraries-and-Path}
+```{r Libraries-and-Path, include = F}
+
+library(tidytext) 
+library(tidyverse)
+library(topicmodels) 
+library(ldatuning)
+library(textstem) 
+library(SnowballC) 
+library(tm)
+library(car) 
+
+#require("knitr")
+#opts_knit$set(root.dir = "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
 
 ```
+
+
+
+```{r Data-Cleaning}
+# load raw data and begin conversion to long data format 
+dat <- read_csv("cdc_raw_reasons.csv")
+
+# rename columns
+
+dat <- dat %>%
+   rename(Decision = Q4, Reason1 = Q12_1, Reason2 = Q12_2, Reason3 = Q12_3, 
+          Reason4 = Q12_4, Reason5 = Q12_5, Reason6 = Q12_6, Reason7 = Q12_7, 
+          Reason8 = Q12_8, Reason9 = Q12_9, Reason10 = Q12_10)  
+
+
+# first add unique participant id 
+dat1 <- dat %>%
+  mutate(participant_id = 1:length(Decision))
+
+# use duplicated() to check that each participant_id is unique 
+duplicated(dat1[ ,c("participant_id")])
+
+# after confirming that all ids are unique
+# create one data set of reasons that will be 
+# used to convert from wide to long format 
+
+dat2 <- dat1 %>%
+  select(participant_id, Reason1, Reason2, Reason3, Reason3, 
+         Reason4, Reason5, Reason6, Reason7, Reason8, Reason9, Reason10)  
+
+# first convert reasons to long data format
+data_long <- dat2 %>%
+  gather(key = "Reason", 
+         value = "Reason_Stated", c(-participant_id)) 
+
+
+# next create a subset of the original data without the reasons data
+# instead, retain only the BRT and decision variable scores to reattach
+# to the long data frame
+
+scores_to_merge <- dat1 %>%
+  select(participant_id, ConfRfor, ConfRag, Att_Ave, SN_Ave, PC_Ave, MacroReasoning_3_items_standardized_Ave, 
+         SN_general_Ave, SN_work_Ave, ProReas, ConReas)
+
+# now, merge with the long formatted reasons data and merge by participant_id
+
+reasons_formatted <- merge(x = data_long, 
+                           y = scores_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+
+# finally remove rows with NA values 
+
+reasons_long <- reasons_formatted %>%
+  filter(!is.na(Reason_Stated)) 
+
+
+# add row_id, which will be used after creating topic model
+# to re-assign the topic model output back to the unique row id 
+reasons_long$row_id <- paste(1:nrow(reasons_long))
+
+
+```
+
+
+
+Topic Modeling
+
+```{r dtm-and-fit}
+
+dtm_1 <- reasons_long %>%
+  unnest_tokens(word, Reason_Stated) %>%
+  anti_join(stop_words) %>%
+    mutate(stem = wordStem(word)) %>%
+  count(row_id, stem) %>%
+  cast_dtm(document = row_id, term = stem, value = n) %>%
+  as.matrix() 
+
+
+# identify possible k 
+
+seed<- 59127
+number_topics <- FindTopicsNumber(
+  dtm_1,
+  topics = seq(from = 2, to = 15, by = 1),
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+# it appears that an optimal number of topics are 2 or 6
+FindTopicsNumber_plot(number_topics) 
+
+
+```
+
+
+
+
+
+
+```{r}
+
+ctm_1 <- CTM(dtm_1, 
+    k = 3, 
+    method = "VEM")
+
+# create similar LDA 
+
+#lda_six <- LDA(reasons_dtm,k = 6) 
+
+# tidy the CTM model output 
+
+ctm_topics <- ctm_1 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_word_probs<- ctm_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12)) 
+
+```
+
+
+
+
+Review frequencies and determine min/max thresholds 
+
+```{r}
+# view top terms in corpus
+ctm_topics %>%
+  arrange(desc(beta)) 
+
+# set a min and max threshold for input into topic model
+# define terms to remove based on over use or under use 
+threshold_remove <- c("sick", "covid", "spread")
+
+# the following steps repeat those above after removing max threshold word 
+reasons_long_1 <- reasons_long %>%   
+  mutate(Reason_cleaned = 
+           str_remove_all(Reason_Stated, 
+          regex(str_c("\\b",threshold_remove, "\\b", collapse = '|'), 
+          ignore_case = T)))
+
+dtm_2 <- reasons_long_1 %>%
+  unnest_tokens(word, Reason_cleaned) %>%
+  anti_join(stop_words) %>%
+    mutate(stem = wordStem(word)) %>%
+  count(row_id, stem) %>%
+  cast_dtm(document = row_id, term = stem, value = n) %>%
+  as.matrix()  
+
+ctm_2<- LDA(dtm_2, 
+    k = 3, 
+    method = "VEM")
+
+
+ctm_2_topics <- ctm_2 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_2_word_probs <- ctm_2_topics  %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_2_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
