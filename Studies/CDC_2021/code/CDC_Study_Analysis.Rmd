@@ -15,6 +15,7 @@ library(textstem)
 library(SnowballC) 
 library(tm)
 library(car) 
+library(stm) 
 
 #require("knitr")
 #opts_knit$set(root.dir = "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
@@ -252,15 +253,81 @@ word_probs(mod = ctm_3, k = 3)
 
 
 
+```
+
+
+
+Structural Topic Model 
+
+```{r structural-topic-model}
+
+library(tidytext)
+
+# using tidytext principles, transform data into a tidy data structure with unnest_tokens()
+tidy_reasons <- reasons_long %>%
+    mutate(line = row_number()) %>%
+    unnest_tokens(word, Reason_Stated) %>%
+    anti_join(stop_words) 
+
+# view top words 
+tidy_reasons %>%
+    count(word, sort = TRUE)
+
+
+library(drlib)
+
+# create both tf-idf as well as word-by-document 
+reasons_tf_idf <- tidy_reasons %>%
+    count(participant_id, word, sort = TRUE) %>%
+    bind_tf_idf(word, participant_id, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(participant_id) %>%
+    top_n(10) %>%
+    ungroup
+
+reasons_tf_idf
+
+library(quanteda) 
+
+reasons_dfm <- tidy_reasons %>%
+    count(participant_id, word, sort = TRUE) %>%
+    cast_dfm(participant_id, word, n)
+
+reasons_sparse <- tidy_reasons %>%
+    count(participant_id, word, sort = TRUE) %>%
+    cast_sparse(participant_id, word, n)
+
 
 
 ```
 
 
 
+```{r stm1}
 
+# generate stm with k = 6
+stm1 <- stm(reasons_dfm, K = 6, 
+                   verbose = FALSE, init.type = "Spectral")
 
+# next, use tidy() to get probabilities that each word is assigned by stm to a latent topic 
+td_beta <- tidy(stm1)
 
+td_beta %>%
+    group_by(topic) %>%
+    top_n(10, beta) %>%
+    ungroup() %>%
+    mutate(topic = paste0("Topic ", topic),
+           term = reorder_within(term, beta, topic)) %>%
+    ggplot(aes(term, beta, fill = as.factor(topic))) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free_y") +
+    coord_flip() +
+    scale_x_reordered() +
+    labs(x = NULL, y = expression(beta),
+         title = "Highest word probabilities for each topic",
+         subtitle = "Different words are associated with different topics")
+
+```
 
 
 
