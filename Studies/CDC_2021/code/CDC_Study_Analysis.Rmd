@@ -486,14 +486,23 @@ ntopics <- searchK(out$documents, out$vocab, K = c(2, 10), data = meta)
 
 # 
 plot(ntopics)
+
+# selectModel() approach can also be used in addition to searchK() 
+# whereby models are selected that optimize on exclusivity and semantic coherence 
+
+stm_select_mod <- selectModel(out$documents, out$vocab, K = 15, 
+                              prevalence = ~ConfRfor, max.em.its = 75, data = out$meta, 
+                              runs = 15) 
+
+plotModels(stm_select_mod, pch = c(1,2,3,4), legend.position = "bottomright")
 ```
 
 ```{r stm-add-covariate}
 
 fit1 <- stm(out$documents, # the documents
-            out$vocab, # the words
-            prevalence =~ ConfRfor + ProReas,
-            K = 4, # 4 topics
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + SN_Ave + PC_Ave,
+            K = 3, # 4 topics
             max.em.its = 75, # set to run for a maximum of 75 EM iterations
             data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
             init.type = "Spectral") 
@@ -535,9 +544,7 @@ td_beta %>%
   # Label the x-axis, y-axis, as well as title
   labs(
     y = expression(beta),
-    title = "Highest word probabilities for each topic",
-    subtitle = "Different words are associated with different topics"
-  ) +
+    title = "Highest word probabilities for each topic") +
   # And finally define the colors
   scale_fill_manual(values = wes_palette("Darjeeling1"))
 
@@ -557,9 +564,9 @@ plot.STM(fit1, type = "summary")
 findThoughts(
   # Your topic model
   fit1,
-  texts = reasons_long$document, 
-  topics = c(1,2,3,4), 
-  n = 5
+  texts = token_reasons, 
+  n = 3, 
+  topics = c(1,2,3)
 )
 ```
 
@@ -567,7 +574,30 @@ findThoughts(
 Use model outputs to assign categorical variables for regression 
 
 ```{r}
-estimateEffect()
+est1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit1, metadata = out$meta)   
+
+summary(est1) 
+
+plot(est1, covariate = "Att_Ave", topics = c(1,2), 
+     model = fit1, 
+     method = "continuous") 
+```
+
+
+```{r extract-estimate-effects}
+
+library(tidystm)
+
+
+est1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit1, metadata = out$meta)   
+## Estimate the effect on all three topics and return the point
+## estimates in a tidy data frame
+effect <- extract.estimateEffect(est1, "Att_Ave", model = fit1, method = "pointestimate") 
+
+
+knitr::kable(effect)
+
+
 ```
 
 
