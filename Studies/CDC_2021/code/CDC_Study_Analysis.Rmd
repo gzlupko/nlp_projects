@@ -871,6 +871,9 @@ against_ntopics <- searchK(against_out$documents, against_out$vocab, K = c(2, 3,
 # plot fit statistic values for solutions on reasons against data 
 plot(against_ntopics)
 
+# grab fit statistics for topic model solutions on reasons against data 
+against_ntopics$results
+
 ```
 
 
@@ -1008,7 +1011,7 @@ plot(against_est_three_1, covariate = "Att_Ave", model = against_fit_three,
 
 against_fit_four <- stm(against_out$documents, # the documents
             against_out$vocab, # the words
-            K = 4, # 3 topics
+            K = 4, 
             max.em.its = 75, # set to run for a maximum of 75 EM iterations
             data = against_out$meta, # all the variables (we're not actually including any predictors in this model, though)
             init.type = "Spectral")  
@@ -1016,23 +1019,23 @@ against_fit_four <- stm(against_out$documents, # the documents
 
 
 # highest word probabilities bar chart 
-td_beta <- tidy(against_fit_three) 
+td_beta <- tidy(against_fit_four) 
 word_probs(td_beta)
 
 # look at highest word probability
-labelTopics(against_fit_three)
+labelTopics(against_fit_four)
 
 # top terms conditioning on exclusivity of terms by between topics 
-plot.STM(against_fit_three, type = "labels", labeltype = c("frex"), main = "3-Topic Solution: Exclusivity")  
+plot.STM(against_fit_four, type = "labels", labeltype = c("frex"), main = "4-Topic Solution: Exclusivity")  
 
 # perpsective plot: can add additional context on differentiation b/w two specific topics in the solution
-plot.STM(against_fit_three, type = "perspectives", topics = c(1,2))   
+plot.STM(against_fit_four, type = "perspectives", topics = c(1,2))   
 
 # expected proportion of topics in all reasons for data 
-plot.STM(against_fit_three, type = "summary", main = "3-Topic Expected Proportion")  
+plot.STM(against_fit_four, type = "summary", main = "4-Topic Expected Proportion")  
 
 # look at top words by category
-labelTopics(against_fit_three)
+labelTopics(against_fit_four)
 ```
 
 
@@ -1041,32 +1044,34 @@ Reasons Against Estimated Effects 3-topic solution
 ```{r 4-topic-estimated-effects}
 
 # Attitude 
-set.seed(1061) 
-against_est_three_1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = against_fit_three, metadata = against_out$meta, 
+set.seed(10826) 
+against_est_four_1 <- estimateEffect(1:4 ~ Att_Ave, stmobj = against_fit_four, metadata = against_out$meta, 
                                     uncertainty = "Global")    
 
-summary(against_est_three_1) 
+summary(against_est_four_1) 
 
 # Subjective Norm 
 
-against_est_three_2 <- estimateEffect(1:3 ~ SN_Ave, stmobj = against_fit_three, metadata = against_out$meta, 
+against_est_four_2 <- estimateEffect(1:4 ~ SN_Ave, stmobj = against_fit_four, metadata = against_out$meta, 
                        uncertainty = "Global")   
-summary(against_est_three_2)
+summary(against_est_four_2)
 
 # Perceived Control
 
-against_est_three_3 <- estimateEffect(1:3 ~ PC_Ave, stmobj = against_fit_three, metadata = against_out$meta, 
+against_est_four_3 <- estimateEffect(1:4 ~ PC_Ave, stmobj = against_fit_four, metadata = against_out$meta, 
                        uncertainty = "Global")   
-summary(against_est_three_3)
+summary(against_est_four_3)
 
 
 # show the estimated relationship between Against Topic 3 and PC 
-plot(against_est_three_1, covariate = "Att_Ave", model = against_fit_three,
-     method = "continuous", xlab = "Attitude", topics = c(2), 
-     main = "Attitude by Topic 2 \n in Reasons Against")  
+plot(against_est_four_1, covariate = "Att_Ave", model = against_fit_four,
+     method = "continuous", xlab = "Attitude", topics = c(3), 
+     main = "Attitude by Topic 3 \n in Reasons Against")  
 
 
 ```
+
+
 
 
 
