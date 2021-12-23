@@ -16,17 +16,20 @@ library(SnowballC)
 library(tm)
 library(car) 
 library(stm) 
-
+library(wesanderson)
 #require("knitr")
 #opts_knit$set(root.dir = "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
-
 ```
 
 
 
 ```{r Data-Cleaning}
 # load raw data and begin conversion to long data format 
-dat <- read_csv("cdc_raw_reasons.csv")
+# this row for reasons only data (no state or vax covariates)
+#dat <- read_csv("cdc_raw_reasons.csv")
+
+# this row for covariates included in broader data set: state and vax
+dat <- read_csv("cdc_full_data.csv")
 
 # rename columns
 
@@ -34,6 +37,10 @@ dat <- dat %>%
    rename(Decision = Q4, Reason1 = Q12_1, Reason2 = Q12_2, Reason3 = Q12_3, 
           Reason4 = Q12_4, Reason5 = Q12_5, Reason6 = Q12_6, Reason7 = Q12_7, 
           Reason8 = Q12_8, Reason9 = Q12_9, Reason10 = Q12_10)  
+
+# rename additional columns to shorter headers 
+dat <- dat %>%
+  rename(MacroReasoning = MacroReasoning_3_items_standardized_Ave)
 
 
 # first add unique participant id 
@@ -62,8 +69,8 @@ data_long <- dat2 %>%
 # to the long data frame
 
 scores_to_merge <- dat1 %>%
-  select(participant_id, ConfRfor, ConfRag, Att_Ave, SN_Ave, PC_Ave, MacroReasoning_3_items_standardized_Ave, 
-         SN_general_Ave, SN_work_Ave, ProReas, ConReas)
+  select(participant_id, ConfRfor, ConfRag, Att_Ave, SN_Ave, PC_Ave, MacroReasoning, 
+         SN_general_Ave, SN_work_Ave, ProReas, ConReas, State)
 
 # now, merge with the long formatted reasons data and merge by participant_id
 
@@ -88,7 +95,7 @@ reasons_long$row_id <- paste(1:nrow(reasons_long))
 
 
 
-Topic Modeling
+Topic Modeling - Tidytext framework 
 
 ```{r dtm-and-fit}
 
@@ -257,7 +264,7 @@ word_probs(mod = ctm_3, k = 3)
 
 
 
-Structural Topic Model 
+Structural Topic Modeling Framework 
 
 ```{r structural-topic-model}
 
@@ -273,8 +280,6 @@ tidy_reasons <- reasons_long %>%
 tidy_reasons %>%
     count(word, sort = TRUE)
 
-
-library(drlib)
 
 # create both tf-idf as well as word-by-document 
 reasons_tf_idf <- tidy_reasons %>%
@@ -452,13 +457,14 @@ reasons_long <- reasons_long %>%
   rename(document = Reason_Stated) 
 
 # test remove NA from ConfRfor
-reasons_long <- reasons_long %>%
-  filter(!is.na(ConfRfor)) 
+#reasons_long <- reasons_long %>%
+  #filter(!is.na(ConfRfor)) 
 
 # uses textProcessor() function from tm package 
 processed <- textProcessor(reasons_long$document, metadata = reasons_long)
 out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
 
+# run an initial 4-topic fit to explore initial elements in the corpus 
 fit0 <- stm(out$documents, # the documents
             out$vocab, # the words
             K = 4, # 10 topics
@@ -475,10 +481,9 @@ plot.STM(fit0, type = "summary")
 round(topicCorr(fit0)$cor, 2) # just the correlations between topics
 
 
-
-
 ```
 
+Model Diagnostics: examining semantic coherence and exclusivity 
 
 ```{r, include F}
 # identify best k
@@ -491,36 +496,45 @@ plot(ntopics)
 # whereby models are selected that optimize on exclusivity and semantic coherence 
 
 stm_select_mod <- selectModel(out$documents, out$vocab, K = 15, 
-                              prevalence = ~ConfRfor, max.em.its = 75, data = out$meta, 
+                              prevalence = ~State, max.em.its = 75, data = out$meta, 
                               runs = 15) 
 
 plotModels(stm_select_mod, pch = c(1,2,3,4), legend.position = "bottomright")
 ```
 
-```{r stm-add-covariate}
 
-fit1 <- stm(out$documents, # the documents
+Reasons For data - Topic Model Comparisons
+
+The following code chunks compare 2, 3, and 4-topic model solutions to select the best one. First, a 2-topic model solution is generated along with corresponding figures, tables, and estimated effect analyses. 
+```{r stm-2-topic}
+
+fit_two <- stm(out$documents, # the documents
             out$vocab, # covariates expected to affect topic content 
-            prevalence =~ participant_id + SN_Ave + PC_Ave,
-            K = 3, # 4 topics
+            prevalence =~ participant_id + State,
+            K = 2, # 2 topics
             max.em.its = 75, # set to run for a maximum of 75 EM iterations
             data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
             init.type = "Spectral") 
 
-sageLabels(fit1) # only works with content covariates in the model
-plot(fit1)
+sageLabels(fit_two) # only works with content covariates in the model
+plot(fit_two)
 
 # correlations between topics 
 round(topicCorr(fit0)$cor, 2) # just the correlations between topics
 round(topicCorr(fit1)$cor, 2)
 ```
 
+Bar chart for 2-topic model solution fit 
 
 ```{r}
 # Turn the STM object into a data frame. This is necessary so that we can work with it.
-td_beta <- tidy(fit1)
-library(wesanderson)
-td_beta %>%
+td_beta <- tidy(fit_two)
+
+# create re-useable function for subsequent topic model solutions 
+# bar chart uses wesanderson color palettes
+word_probs <- function(td_beta) { 
+  
+  td_beta %>%
   # Group by topic
   group_by(topic) %>%
   # Take the top 10 based on beta
@@ -547,24 +561,31 @@ td_beta %>%
     title = "Highest word probabilities for each topic") +
   # And finally define the colors
   scale_fill_manual(values = wes_palette("Darjeeling1"))
+  
+  
+  }
+
+# generate bar chart for 2 topic solution
+word_probs(td_beta) 
 
 ```
 
 
 ```{r}
 # look at highest word probability
-labelTopics(fit1)
+labelTopics(fit_two)
 
-plot.STM(fit1, type = "labels") 
+plot.STM(fit_two, type = "labels") 
 
-plot.STM(fit1, type = "summary") 
+plot.STM(fit_two, type = "summary") 
 # look at 
+plot.STM(fit_two, type = "labels", labeltype = c("frex"), main = "2-Topic Solution: Exclusivity")  
 
 # outputs most representative documents for a particular topic
 findThoughts(
   # Your topic model
-  fit1,
-  texts = token_reasons, 
+  fit_two,
+  texts = reasons_long, 
   n = 3, 
   topics = c(1,2,3)
 )
@@ -574,46 +595,107 @@ findThoughts(
 Use model outputs to assign categorical variables for regression 
 
 ```{r}
-est1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit1, metadata = out$meta)   
 
-summary(est1) 
+# Attitude 
+est_two_1 <- estimateEffect(1:2 ~ Att_Ave, stmobj = fit_two, metadata = out$meta, 
+                       uncertainty = "Global")   
 
-plot(est1, covariate = "Att_Ave", topics = c(1,2), 
-     model = fit1, 
+summary(est_two_1) 
+
+# Subjective Norm 
+
+est_two_2 <- estimateEffect(1:2 ~ SN_Ave, stmobj = fit_two, metadata = out$meta, 
+                       uncertainty = "Global")   
+
+summary(est_two_2)
+
+# Perceived Control
+
+est_two_3 <- estimateEffect(1:2 ~ PC_Ave, stmobj = fit_two, metadata = out$meta, 
+                       uncertainty = "Global")   
+
+summary(est_two_3)
+
+plot(est_two_1, covariate = "Att_Ave", topics = c(1,2), 
+     model = fit_two, 
      method = "continuous") 
+
+# show the estimated relationship between Topic 1 and Attitude 
+plot(est_two_1, covariate = "Att_Ave", model = fit_two,
+     method = "continuous", xlab = "Attitude", topics = c(1))
 ```
 
 
+Generate a 3-topic solution with figures and diagnostics. 
 
-```{r}
+```{r stm-3-topic}
 
-
-
-fit2 <- stm(out$documents, # the documents
+fit_three <- stm(out$documents, # the documents
             out$vocab, # covariates expected to affect topic content 
-            prevalence =~ Att_Ave,
-            K = 3, # 4 topics
+            prevalence =~ participant_id + State,
+            K = 3, # 2 topics
             max.em.its = 75, # set to run for a maximum of 75 EM iterations
             data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
             init.type = "Spectral") 
 
-est2 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit2, metadata = out$meta)   
+sageLabels(fit_three) # only works with content covariates in the model
+plot(fit_three)
 
-summary(est2) 
+# correlations between topics 
+round(topicCorr(fit_three)$cor, 2) #correlations between topics
 
-# plot the relationship between topic and attitude
-plot(est2, covariate = "Att_Ave", topics = c(1), 
-     model = fit2, 
+
+# highest word probabilities bar chart 
+td_beta <- tidy(fit_three) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(fit_three)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(fit_three, type = "labels", labeltype = c("frex"), main = "3-Topic Solution: Exclusivity")  
+
+# perpsective plot 
+plot.STM(fit_three, type = "perspectives", topics = c(2,3))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(fit_three, type = "summary") 
+
+```
+
+
+Calculate estimated effects for the 3-topic solution
+
+```{r stm-3-topic-estimates}
+
+# Attitude 
+est_three_1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit_three, metadata = out$meta)   
+
+summary(est_three_1) 
+
+# Subjective Norm 
+
+est_three_2 <- estimateEffect(1:3 ~ SN_Ave, stmobj = fit_three, metadata = out$meta, 
+                       uncertainty = "Global")   
+
+summary(est_three_2)
+
+# Perceived Control
+
+est_three_3 <- estimateEffect(1:3 ~ PC_Ave, stmobj = fit_three, metadata = out$meta, 
+                       uncertainty = "Global")   
+
+summary(est_three_3)
+
+
+
+plot(est_two_1, covariate = "Att_Ave", topics = c(1,2), 
+     model = fit_two, 
      method = "continuous") 
-plot(est2, covariate = "Att_Ave", topics = c(2), 
-     model = fit2, 
-     method = "continuous") 
-plot(est2, covariate = "Att_Ave", topics = c(3), 
-     model = fit2, 
-     method = "continuous") 
 
-
-
+# show the estimated relationship between Topic 3 and PC 
+plot(est_three_3, covariate = "PC_Ave", model = fit_three,
+     method = "continuous", xlab = "Perceived Control", topics = c(3))
 
 
 ```
@@ -633,15 +715,6 @@ effect <- extract.estimateEffect(est1, "Att_Ave", model = fit1, method = "pointe
 knitr::kable(effect)
 
 
-```
-
-
-
-TopicCorr
-
-```{r}
-# correlations between topics 
-topicCorr(fit1, cutoff = 0.01) 
 ```
 
 
