@@ -577,7 +577,7 @@ labelTopics(fit_two)
 
 plot.STM(fit_two, type = "labels") 
 
-plot.STM(fit_two, type = "summary") 
+plot.STM(fit_two, type = "summary", main = "2-Topic Expected Proportions") 
 # look at 
 plot.STM(fit_two, type = "labels", labeltype = c("frex"), main = "2-Topic Solution: Exclusivity")  
 
@@ -644,7 +644,6 @@ plot(fit_three)
 # correlations between topics 
 round(topicCorr(fit_three)$cor, 2) #correlations between topics
 
-
 # highest word probabilities bar chart 
 td_beta <- tidy(fit_three) 
 word_probs(td_beta)
@@ -701,21 +700,103 @@ plot(est_three_3, covariate = "PC_Ave", model = fit_three,
 ```
 
 
+Generate a 4-topic model solution for comparison
+
+
+```{r stm-4-topic-model}
+
+fit_four <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 4, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral") 
+
+sageLabels(fit_four) # only works with content covariates in the model
+plot(fit_four)
+
+# correlations between topics 
+round(topicCorr(fit_four)$cor, 2) # shows that correlations
+
+
+# highest word probabilities bar chart 
+td_beta <- tidy(fit_four) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(fit_four)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(fit_four, type = "labels", labeltype = c("frex"), main = "4-Topic Solution: Exclusivity")  
+
+# perpsective plot: can add additional context on differentiation b/w two specific topics in the solution
+plot.STM(fit_four, type = "perspectives", topics = c(3,4))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(fit_four, type = "summary") 
+
+```
+
+
+
+Calculate estimated effects for 4-topic solution 
+
+```{r stm-4-topic-estimates}
+
+
+# Attitude 
+est_four_1 <- estimateEffect(1:4 ~ Att_Ave, stmobj = fit_four, metadata = out$meta)   
+
+summary(est_four_1) 
+
+# Subjective Norm 
+
+est_four_2 <- estimateEffect(1:4 ~ SN_Ave, stmobj = fit_four, metadata = out$meta, 
+                       uncertainty = "Global")   
+summary(est_four_2)
+
+# Perceived Control
+
+est_four_3 <- estimateEffect(1:4 ~ PC_Ave, stmobj = fit_four, metadata = out$meta, 
+                       uncertainty = "Global")   
+
+summary(est_four_3)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r extract-estimate-effects}
 
 library(tidystm)
 
 
-est1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit1, metadata = out$meta)   
+est1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit_three, metadata = out$meta)   
 ## Estimate the effect on all three topics and return the point
 ## estimates in a tidy data frame
-effect <- extract.estimateEffect(est1, "Att_Ave", model = fit1, method = "pointestimate") 
+effect <- extract.estimateEffect(est1, "Att_Ave", model = fit_three, method = "pointestimate") 
 
-
-knitr::kable(effect)
 
 
 ```
+
+
+
+
 
 
 
