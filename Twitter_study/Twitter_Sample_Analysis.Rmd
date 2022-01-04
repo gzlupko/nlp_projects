@@ -403,3 +403,40 @@ lmF_1 %>%
 
 
 
+
+
+
+Below code chunks run STM as alternative to LDA and CTM topic models 
+
+```{r STM-approach}
+
+library(stm)
+
+# remove rows with NA values 
+twitter_data <- twitter_data %>%
+  select(-c(X11:X18))
+
+# take a random sample to limit n size 
+twitter_data<- twitter_data %>%
+   sample_n(2000) 
+
+
+# generate corpus using STM framework
+
+processed <- textProcessor(twitter_data$text, metadata = twitter_data) 
+
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta) 
+
+
+# search for ideal number of topics 
+
+ntopics <- searchK(out$documents, out$vocab, K = c(2,3,4,5,6,7), data = meta)
+
+# fit statistics for k = 2 to 7 topic estimations  
+plot(ntopics) # based on coherence, a two to four topic solution looks best 
+
+```
+
+
+
+
