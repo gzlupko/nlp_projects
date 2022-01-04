@@ -416,7 +416,6 @@ library(stm)
 twitter_data <- twitter_data %>%
   select(-c(X11:X18))
 
-
 # clean created_at column with time stamp 
 # first, remove non-date values 
 
@@ -444,18 +443,25 @@ twitter_sample <- twitter_data %>%
 # view random sample by month 
 table(twitter_sample$month) 
 
+
+
+```
+
+
+
+```{r generate-corpus}
+
+
+
+
 # generate corpus using STM framework
 
 processed <- textProcessor(twitter_sample$text, metadata = twitter_sample) 
 
 out <- prepDocuments(processed$documents, processed$vocab, processed$meta) 
 
-
 # search for ideal number of topics 
 ntopics <- searchK(out$documents, out$vocab, K = c(2,3,4,5,6,7), data = meta)
-
-# fit statistics for k = 2 to 7 topic estimations  
-plot(ntopics) # based on coherence, a two to four topic solution looks best 
 
 ```
 
@@ -536,6 +542,26 @@ word_probs(td_beta)
 
 
 
+
+
+```{r sentiment-analysis}
+
+# show change in sentiment over time 
+library(tidytext) 
+twitter_tidy <- tibble(twitter_sample)
+
+twitter_tidy <- tibble(twitter_sample) %>% 
+  unnest_tokens(sentence, text, token = "sentences") %>%
+  right_join(get_sentiments("bing")) 
+
+# generate sentiment scores on twitter_tidy
+sentiment_df <- sentiment_by(twitter_tidy$sentence) 
+sentiment_df
+
+table(twitter_tidy$month, twitter_tidy$sentiment) 
+
+
+```
 
 
 
