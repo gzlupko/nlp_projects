@@ -660,6 +660,13 @@ plot.STM(fit_three, type = "perspectives", topics = c(2,3))
 # expected proportion of topics in all reasons for data 
 plot.STM(fit_three, type = "summary", main = "3-Topic Expected Proportions") 
 
+
+# custom approach to summarizing topic proportions 
+
+reasons_for_proportions <- make.dt(fit_three) 
+
+summarize_all(reasons_for_proportions, mean)
+
 ```
 
 
@@ -973,6 +980,14 @@ plot.STM(against_fit_three, type = "summary", main = "3-Topic Expected Proportio
 
 # look at top words by category
 labelTopics(against_fit_three)
+
+# custom proption of topic in overall corpus for 3-topic model 
+
+reasons_against_prop <- make.dt(against_fit_three)
+
+summarize_all(reasons_against_prop, mean) 
+
+
 ```
 
 
