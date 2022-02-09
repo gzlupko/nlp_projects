@@ -4,7 +4,7 @@ This repository contains NLP R code for research conducted by the Dynamic Networ
 
 
 ## Table of Contents 
-* [Overview)(#Overview) 
+* [Overview](#Overview) 
 * [Sample Methods](#Sample-Methods)
 
 
@@ -16,7 +16,7 @@ This repository contains NLP R code for research conducted by the Dynamic Networ
 The visualizations in this Readme are based on sample decision data (N = 239) from DNL's Summer 2021 general decision calculator study.  
 &nbsp;
 
-### Sampele Methods
+### Sample Methods
 
 ###### LDA Density Plots 
 
