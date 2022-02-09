@@ -1,6 +1,6 @@
 # NLP Code for Dynamic Network Lab Research
 
-
+This repostiory contains NLP R code for research conducted by the Dynamic Network Lab at Columbia University. 
 
 
 ## Table of Contents 
