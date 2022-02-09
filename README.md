@@ -4,21 +4,21 @@ This repostiory contains NLP R code for research conducted by the Dynamic Networ
 
 
 ## Table of Contents 
-* [Course Overview](#Course-Overview) 
-* [Labs](#Labs)
-* [Sample Data Visualizations](#Sample-Data-Visualizations)
-* [Useful Code](#Useful-Code)
+* [Overview)(#Overview) 
+* [Sample Methods](#Sample-Methods)
 
 
 
 
-**NLP code repo for DNL research**
+### Overview
 
 
 The visualizations in this Readme are based on sample decision data (N = 239) from DNL's Summer 2021 general decision calculator study.  
 &nbsp;
 
-### LDA Density Plots 
+### Sampele Methods
+
+###### LDA Density Plots 
 
 Below is an LDA density plot for the decisions that participants listed. The density plot provides one indication for the ideal number of topics in the text data. The density plot shows the probabilities of overlap of terms in topics for a particular solution. The lower the density (of overlap), the better the solution as low term overlap will help the researcher subjectively differentiate the topics and provide definitions for the topics based on their unique terms. 
 
@@ -62,7 +62,7 @@ Below are the top terms for each of the three topics in the recommended three to
 &nbsp;
 
 
-### Topic and Term Probabilities 
+###### Topic and Term Probabilities 
 The below table shows the probabilities of each topic occuring in the corpus (overall collection of text data) as well as the the probability of each term occuring in the corpus. Note: this is based on a three-topic solution, which is recommended by the density statistic as well as a subjective content review of the groupings. 
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/beta_gamma_sample.png)
@@ -71,7 +71,7 @@ The below table shows the probabilities of each topic occuring in the corpus (ov
 &nbsp;
 
 
-### N-gram Analyses 
+###### N-gram Analyses 
 
 N-gram analyses are used to understand which words are commonly used together in text (Finch et al., 2018). The below table shows bi-gram and tri-gram analyses of the decision data, indicating two and three word groupings that most commonly occur in the text data. 
  
@@ -96,7 +96,7 @@ The below table shows the most commonly occuring words that succeed target words
 &nbsp;
 
 
-### Sentiment Analysis 
+###### Sentiment Analysis 
 
 Below are word counts and associated sentiments for sample airline review Twitter data. 
 
@@ -107,7 +107,7 @@ Below are word counts and associated sentiments for sample airline review Twitte
 
 &nbsp;
 
-### Hypothesis Testing with Sentiment Scores 
+###### Hypothesis Testing with Sentiment Scores 
 
 
 The table below shows results from a two proportion z-test on the difference of the proportion of positively valenced words in the reasons for data (N = 1,359) compared to the proportion of positively valenced words in the reasons against data (N = 1,297) 
@@ -120,7 +120,7 @@ The table below shows results from a two proportion z-test on the difference of 
 &nbsp;
 
 
-### Correlations with Sentiment Scores and Other Variables 
+###### Correlations with Sentiment Scores and Other Variables 
 
 
 Sentiment scores can be created at the sentence-level using the sentimentr library in R. Those scores can be used in subsequent analyses with other variables measured in cross-sectional research. The below correlation matrix shows the correlations between combined reason sentiment scores (e.g. all reasons combined into one long string) with other BRT variables like perceived control and global motives. 
