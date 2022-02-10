@@ -1,0 +1,316 @@
+---
+title: "WFH Study Code"
+output: html_notebook
+---
+
+
+```{r libraries, include = F}
+library(tidytext) 
+library(tidyverse)
+library(topicmodels) 
+library(ldatuning)
+```
+
+
+
+```{r import-data, include = F}
+# load raw data and begin conversion to long data format 
+getwd() 
+setwd( "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp") 
+dat <- read_csv("reasons_cons_10.20.csv")
+```
+
+
+Next, clean the imported data and convert from wide to long format 
+
+
+```{r data-cleaning, include = F}
+# first add unique participant id 
+dat1 <- dat %>%
+  mutate(participant_id = 1:length(Decision))
+
+# use duplicated() to check that each participant_id is unique 
+duplicated(dat1[ ,c("participant_id")])
+
+# after confirming that all ids are unique
+# create one data set of reasons that will be 
+# used to convert from wide to long format 
+
+dat2 <- dat1 %>%
+  select(participant_id, Reason1, Reason2, Reason3, Reason3, 
+         Reason4, Reason5, Reason6, Reason7, Reason8, Reason9, Reason10)  
+
+# first convert reasons to long data format
+data_long <- dat2 %>%
+  gather(key = "Reason", 
+         value = "Reason_Stated", c(-participant_id)) 
+
+
+# next create a subset of the original data without the reasons data
+# instead, retain only the BRT and decision variable scores to reattach
+# to the long data frame
+
+scores_to_merge <- dat1 %>%
+  select(participant_id, ConfRfor, Att_Ave, PC_Ave, Regret_GlobalMotive_Ave, 
+         SN_Ave, ReasonComparison_3item_Standardized_Ave,
+         Int_3_Item_AfterTPB_PossiblyLessBiasedOnReasons_Standardized_Ave, 
+         MoreInfo_3_items_Ave, Dec_Quality_Survey1_T2_Standardized_AVE, 
+         Regret_Scale_Survey1_T2_2_items_AVE)
+
+# now, merge with the long formatted reasons data and merge by participant_id
+
+reasons_formatted <- merge(x = data_long, 
+                           y = scores_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+
+# finally remove rows with NA values 
+
+reasons_long <- reasons_formatted %>%
+  filter(!is.na(Reason_Stated)) 
+
+
+# add row_id, which will be used after creating topic model
+# to re-assign the topic model output back to the unique row id 
+reasons_long$row_id <- paste(1:nrow(reasons_long))
+
+```
+
+
+
+
+```{r create-DTM}
+#### Topic Modeling 
+
+
+# create dtm for TM; remove stop words
+
+reasons_dtm <- reasons_long %>%
+  unnest_tokens(word, Reason_Stated) %>%
+  anti_join(stop_words) %>%
+  count(row_id, word) %>%
+  cast_dtm(document = row_id, term = word, value = n) %>%
+  as.matrix() 
+              
+# determine ideal number of topic models; visualize
+# first, using just the Cao et al. 2009 method via Finch et al. (2019)
+# the Cao 2009 method minmizes density 
+
+seed<- 59127
+reasons_gibbs <- FindTopicsNumber(
+  reasons_dtm,
+  topics = seq(from = 2, to = 12, by = 1),
+  metrics = c("CaoJuan2009"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+# it appears that an optimal number of topics are 2 or 6
+FindTopicsNumber_plot(reasons_gibbs) 
+
+
+
+# identify k topics again using the broader list of metrics
+result <- FindTopicsNumber(
+  reasons_dtm,
+  topics = seq(from = 2, to = 15, by = 1),
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "VEM",
+  control = list(seed = 831),
+  mc.cores = 2L,
+  verbose = TRUE)
+
+FindTopicsNumber_plot(result)
+
+
+```
+
+
+
+```{r TM-evaluation}
+# run a correlated topic model with k = 4
+ctm_1 <- CTM(reasons_dtm, 
+    k = 4, 
+    method = "VEM")
+
+# create similar LDA 
+
+#lda_six <- LDA(reasons_dtm,k = 6) 
+
+# tidy the CTM model output 
+
+reasons_ctm_topics <- ctm_1 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta)) 
+
+reasons_ctm_topics
+
+# arrange top 15 terms by each topic 
+
+reasons_word_probs<- reasons_ctm_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+reasons_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12)) 
+```
+
+
+```{r assign-topics}
+# assign topic from CTM to observations 
+# use the function topics() from topicmodels library to assign the most
+# likely topics for each document (in this case combined reasons) 
+
+ctm_assignments <- data.frame(topics(ctm_1)) 
+ctm_assignments$row_id <- rownames(ctm_assignments) 
+colnames(ctm_assignments) <- c("topic_assigned", "row_id") 
+
+# join topic assignment outputs with original data set using dyply's inner_join() 
+
+topics_assigned <- inner_join(x = reasons_long, 
+           y = ctm_assignments, 
+           by = "row_id") 
+  
+# check distribution of topics assigned
+# shows even split between two topics 
+table(topics_assigned$topic_assigned) 
+```
+
+
+```{r topic-probabilities}
+# return the topic probabilities for each 'document' (e.g. combined reasons)
+# using posterior() from the topicmodels library
+# afterwards, cleaning df below
+# also exporting the table below as a 'loadings' table 
+
+ctm_1_probabilities <- as.data.frame(topicmodels::posterior(ctm_1)$topics)
+
+ctm_1_probabilities$row_id <- rownames(ctm_1_probabilities) 
+ctm_1_probabilities <- ctm_1_probabilities[ , c(3,1,2)] 
+#View(ctm_1_probabilities) 
+```
+
+
+```{r dummy-coding}
+
+table(topics_assigned$topic_assigned) 
+
+# for a 4 topic solution
+# note: this will change based on the optimal number of topics identified above 
+# in the study, the topic model will first be run and inter-rater reliability
+# will be calculated before this step below, where the topics are assigned back 
+# to the data set 
+
+topics_assigned$topic_1 <- ifelse(topics_assigned$topic_assigned == '1', 1, 0)
+topics_assigned$topic_2 <- ifelse(topics_assigned$topic_assigned == '2', 1, 0)
+topics_assigned$topic_3 <- ifelse(topics_assigned$topic_assigned == '3', 1, 0)
+topics_assigned$topic_4 <- ifelse(topics_assigned$topic_assigned == '4', 1, 0)
+
+#write.csv(topics_assigned, "topics_assinged.csv") 
+
+# now, we need to analyze each participant by row 
+# where we will retain the dummy coding scheme 
+# for the assigned topics but in order to develop
+# a true covariance b/w the topics and the participants' 
+# attitude and intention scores, we can only have one 
+# DV score per participant 
+# note: this step will also need to reflect the optimal 
+# number of topics (k) identified by the modeling procedures above 
+# make the relevant edits to the code below with the ifelse() statements 
+# and store in the final df that will be used for regression modeling 
+
+
+# update this step below by weighting the number of times a topic was mentioned
+# by the participant ... use a count feauture and multiply the topic by n to weight
+
+
+# returns weighted topics per participant; e.g. number of times same person stated a topic
+#weighted_scores <- topics_assigned %>%
+  group_by(participant_id) %>%
+  mutate(topic1 = sum(topic_assigned == 1) * ifelse(topic_assigned == 1, 1, 0), 
+  topic2 = sum(topic_assigned == 2) * ifelse(topic_assigned == 2, 1, 0), 
+  topic3 = sum(topic_assigned == 3) * ifelse(topic_assigned == 3, 1, 0),
+  topic4 = sum(topic_assigned == 4) * ifelse(topic_assigned == 4, 1, 0)) %>%
+  select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  distinct(participant_id, .keep_all = TRUE) 
+
+
+# should number of topics be divided by 10 or made proportional
+# to the number of topics person stated overall? 
+
+weighted_scores <- topics_assigned %>%
+  group_by(participant_id) %>%
+  mutate(topic1 = (1*sum(topic_assigned == 1)/10), 
+         topic2 = (1*sum(topic_assigned == 2)/10),
+         topic3 = (1*sum(topic_assigned == 3)/10), 
+         topic4 = (1*sum(topic_assigned == 4)/10))  %>%
+  select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  distinct(participant_id, .keep_all = TRUE) 
+
+  
+  
+# returns non-weighted topics per participant data set 
+participant_scores <- topics_assigned %>%
+group_by(participant_id) %>%
+mutate(topic1 = ifelse(topic_assigned == 1, 1, 0), 
+       topic2 = ifelse(topic_assigned == 2, 1, 0), 
+       topic3 = ifelse(topic_assigned == 3, 1, 0), topic4 = ifelse(topic_assigned == 4, 1, 0)) %>%
+  select(-c(topic_1, topic_2, topic_3, topic_4, Reason, Reason_Stated)) %>%
+  distinct(participant_id, .keep_all = TRUE) 
+
+
+
+# output .csv for data quality review purposes
+#write.csv(participant_scores, "participant_scores.csv") 
+#write.csv(topics_assigned, "topics_assigned.csv")
+#write.csv(weighted_scores, "weighted_scores.csv") 
+
+
+```
+
+
+
+
+```{r check-assumptions}
+
+ggplot(data = topics_assigned, aes(x = Att_Ave)) + geom_histogram() 
+
+
+```
+
+
+```{r sample-regression}
+
+mod1 <- lm(Att_Ave ~ 1 , 
+           data = weighted_scores)
+mod2 <- lm(Att_Ave ~ topic1 + topic2 + topic3 + topic4, 
+           data = weighted_scores)
+
+ 
+anova(mod1, mod2)
+
+mod2 %>%
+  summary()
+
+```
+
+
+
+
+structural topic model (to insert)
+```{r}
+library(stm) 
+```
+
+
+
