@@ -1,24 +1,32 @@
 # NLP Code for Dynamic Network Lab Research
 
-This repository contains NLP R code for research conducted by the Dynamic Network Lab at Columbia University. 
+This repository contains Natural Language Processing R code for research conducted by the Dynamic Network Lab at Columbia University.
 
 
 ## Table of Contents 
-* [Overview](#Overview) 
+* [Studies](#Studies)
 * [Sample Methods](#Sample-Methods)
 
 
 
+### Studies 
 
-### Overview
+1. Westaby et al. (Forthcoming). _Understanding Compliance and Hesitancy toward the National Covid-19 Safety Guidelines in Public and Workforce Settings: Using Behavioral Reasoning Theory to Advance New Insights in Comparison to the Theory of Planned Behavior_.
+ 
+2. Zlupko & Westaby (in progress). _Using Natural Language Processing to Identify the Substantive Reasoning Underlying Behavior: An Application to Employees’ Behavior to Work-From-Home During COVID-19_. 
 
 
-The visualizations in this Readme are based on sample decision data (N = 239) from DNL's Summer 2021 general decision calculator study.  
-&nbsp;
 
 ### Sample Methods
 
-###### LDA Density Plots 
+##### Structural Topic Models 
+
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/Studies/CDC_2021/vizualizations/search_k_diagnostic_values.jpeg)
+
+
+
+##### LDA Density Plots 
 
 Below is an LDA density plot for the decisions that participants listed. The density plot provides one indication for the ideal number of topics in the text data. The density plot shows the probabilities of overlap of terms in topics for a particular solution. The lower the density (of overlap), the better the solution as low term overlap will help the researcher subjectively differentiate the topics and provide definitions for the topics based on their unique terms. 
 
