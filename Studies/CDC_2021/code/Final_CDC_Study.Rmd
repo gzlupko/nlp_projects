@@ -1,0 +1,1100 @@
+---
+title: "CDC_Analysis"
+output: html_notebook
+---
+
+Data analysis related to CDC compliance behaviors (2021) 
+
+```{r Libraries-and-Path, include = F}
+
+library(tidytext) 
+library(tidyverse)
+library(topicmodels) 
+library(ldatuning)
+library(textstem) 
+library(SnowballC) 
+library(tm)
+library(car) 
+library(stm) 
+library(wesanderson)
+#require("knitr")
+#opts_knit$set(root.dir = "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
+```
+
+
+
+```{r Data-Cleaning}
+# load raw data and begin conversion to long data format 
+# this row for reasons only data (no state or vax covariates)
+#dat <- read_csv("cdc_raw_reasons.csv")
+
+# this row for covariates included in broader data set: state and vax
+dat <- read_csv("cdc_full_data.csv")
+
+# rename columns
+
+dat <- dat %>%
+   rename(Decision = Q4, Reason1 = Q12_1, Reason2 = Q12_2, Reason3 = Q12_3, 
+          Reason4 = Q12_4, Reason5 = Q12_5, Reason6 = Q12_6, Reason7 = Q12_7, 
+          Reason8 = Q12_8, Reason9 = Q12_9, Reason10 = Q12_10)  
+
+# rename additional columns to shorter headers 
+dat <- dat %>%
+  rename(MacroReasoning = MacroReasoning_3_items_standardized_Ave)
+
+
+# first add unique participant id 
+dat1 <- dat %>%
+  mutate(participant_id = 1:length(Decision))
+
+# use duplicated() to check that each participant_id is unique 
+duplicated(dat1[ ,c("participant_id")])
+
+# after confirming that all ids are unique
+# create one data set of reasons that will be 
+# used to convert from wide to long format 
+
+dat2 <- dat1 %>%
+  select(participant_id, Reason1, Reason2, Reason3, Reason3, 
+         Reason4, Reason5, Reason6, Reason7, Reason8, Reason9, Reason10)  
+
+# first convert reasons to long data format
+data_long <- dat2 %>%
+  gather(key = "Reason", 
+         value = "Reason_Stated", c(-participant_id)) 
+
+
+# next create a subset of the original data without the reasons data
+# instead, retain only the BRT and decision variable scores to reattach
+# to the long data frame
+
+scores_to_merge <- dat1 %>%
+  select(participant_id, ConfRfor, ConfRag, Att_Ave, SN_Ave, PC_Ave, MacroReasoning, 
+         SN_general_Ave, SN_work_Ave, ProReas, ConReas, State)
+
+# now, merge with the long formatted reasons data and merge by participant_id
+
+reasons_formatted <- merge(x = data_long, 
+                           y = scores_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+
+# finally remove rows with NA values 
+
+reasons_long <- reasons_formatted %>%
+  filter(!is.na(Reason_Stated)) 
+
+
+# add row_id, which will be used after creating topic model
+# to re-assign the topic model output back to the unique row id 
+reasons_long$row_id <- paste(1:nrow(reasons_long))
+
+
+```
+
+
+
+Topic Modeling - Tidytext framework 
+
+```{r dtm-and-fit}
+
+dtm_1 <- reasons_long %>%
+  unnest_tokens(word, Reason_Stated) %>%
+  anti_join(stop_words) %>%
+    mutate(stem = wordStem(word)) %>%
+  count(row_id, stem) %>%
+  cast_dtm(document = row_id, term = stem, value = n) %>%
+  as.matrix() 
+
+
+# identify possible k 
+
+seed<- 59127
+number_topics <- FindTopicsNumber(
+  dtm_1,
+  topics = seq(from = 2, to = 15, by = 1),
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "GIBBS",
+  
+  control=list(seed = seed),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+# it appears that an optimal number of topics are 2 or 6
+FindTopicsNumber_plot(number_topics) 
+
+
+```
+
+
+
+
+
+
+```{r}
+
+ctm_1 <- CTM(dtm_1, 
+    k = 3, 
+    method = "VEM")
+
+# create similar LDA 
+
+#lda_six <- LDA(reasons_dtm,k = 6) 
+
+# tidy the CTM model output 
+
+ctm_topics <- ctm_1 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_word_probs<- ctm_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12)) 
+
+```
+
+
+
+
+Review frequencies and determine min/max thresholds 
+
+```{r}
+# view top terms in corpus
+ctm_topics %>%
+  arrange(desc(beta)) 
+
+# set a min and max threshold for input into topic model
+# define terms to remove based on over use or under use 
+threshold_remove <- c("sick", "covid", "spread")
+
+# the following steps repeat those above after removing max threshold word 
+reasons_long_1 <- reasons_long %>%   
+  mutate(Reason_cleaned = 
+           str_remove_all(Reason_Stated, 
+          regex(str_c("\\b",threshold_remove, "\\b", collapse = '|'), 
+          ignore_case = T)))
+
+dtm_2 <- reasons_long_1 %>%
+  unnest_tokens(word, Reason_cleaned) %>%
+  anti_join(stop_words) %>%
+    mutate(stem = wordStem(word)) %>%
+  count(row_id, stem) %>%
+  cast_dtm(document = row_id, term = stem, value = n) %>%
+  as.matrix()  
+
+ctm_2<- LDA(dtm_2, 
+    k = 3, 
+    method = "VEM")
+
+
+ctm_2_topics <- ctm_2 %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_2_word_probs <- ctm_2_topics  %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_2_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12))
+```
+
+
+
+```{r 4-and-5-topic-ctm}
+
+ctm_3 <- CTM(dtm_1, 
+    k = 4, 
+    method = "VEM")
+
+
+# create function to store new data objects related to subjective review of model output 
+
+word_probs <- function(mod, k) { 
+  
+  ctm_k_topics <- mod %>%
+  tidy(matrix = "beta") %>%
+  arrange(desc(beta))
+
+# arrange top 15 terms by each topic 
+
+ctm_k_word_probs <- ctm_k_topics  %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 15) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+ctm_k_word_probs %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() + theme(axis.text=element_text(size=12))
+  
+
+  }
+
+
+word_probs(mod = ctm_3, k = 3) 
+
+
+
+```
+
+
+
+Structural Topic Modeling Framework 
+
+```{r structural-topic-model}
+
+library(tidytext)
+
+# using tidytext principles, transform data into a tidy data structure with unnest_tokens()
+tidy_reasons <- reasons_long %>%
+    mutate(line = row_number()) %>%
+    unnest_tokens(word, Reason_Stated) %>%
+    anti_join(stop_words) 
+
+# view top words 
+tidy_reasons %>%
+    count(word, sort = TRUE)
+
+
+# create both tf-idf as well as word-by-document 
+reasons_tf_idf <- tidy_reasons %>%
+    count(participant_id, word, sort = TRUE) %>%
+    bind_tf_idf(word, participant_id, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(participant_id) %>%
+    top_n(10) %>%
+    ungroup
+
+reasons_tf_idf
+
+library(quanteda) 
+
+reasons_dfm <- tidy_reasons %>%
+    count(participant_id, word, sort = TRUE) %>%
+    cast_dfm(participant_id, word, n)
+
+reasons_sparse <- tidy_reasons %>%
+    count(participant_id, word, sort = TRUE) %>%
+    cast_sparse(participant_id, word, n)
+
+
+
+```
+
+
+
+```{r stm1}
+
+# generate stm with k = 6
+stm1 <- stm(reasons_dfm, K = 6, 
+                   verbose = FALSE, init.type = "Spectral")
+
+# next, use tidy() to get probabilities that each word is assigned by stm to a latent topic 
+td_beta <- tidy(stm1)
+
+td_beta %>%
+    group_by(topic) %>%
+    top_n(10, beta) %>%
+    ungroup() %>%
+    mutate(topic = paste0("Topic ", topic),
+           term = reorder_within(term, beta, topic)) %>%
+    ggplot(aes(term, beta, fill = as.factor(topic))) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free_y") +
+    coord_flip() +
+    scale_x_reordered() +
+    labs(x = NULL, y = expression(beta),
+         title = "Highest word probabilities for each topic",
+         subtitle = "Different words are associated with different topics")
+
+```
+
+
+```{r}
+plot.STM(stm1, type = "summary") 
+
+
+# correlations between topics 
+round(topicCorr(stm1)$cor, 2) # just the correlations between topics
+```
+
+
+```{r stm-identify-k}
+
+reasons_long <- reasons_long %>%
+  rename(text = Reason_Stated) 
+
+# Build the corpus
+mycorpus <- corpus(reasons_long) 
+
+# Assigns a unique identifier to each text
+docvars(mycorpus, "Textno") <-
+  sprintf("%02d", 1:ndoc(mycorpus)) 
+
+token <-
+  tokens(
+    # Takes the corpus
+    mycorpus,
+    # Remove numbers
+    remove_numbers = TRUE,
+    # Remove punctuation
+    remove_punct = TRUE,
+    # Remove symbols
+    remove_symbols = TRUE,
+    # Remove URL
+    remove_url = TRUE,
+    # Split up hyphenated words
+    split_hyphens = TRUE,
+    # And include the doc vars (we'll need them later)
+    include_docvars = TRUE
+  )
+
+# Clean tokens created by OCR
+token_reasons <- tokens_select(
+  token,
+  c("[\\d-]", "[[:punct:]]", "^.{1,2}$"),
+  selection = "remove",
+  valuetype = "regex",
+  verbose = TRUE
+)
+
+token_reasons <- tokens_select(token, pattern = stopwords("en"), selection = "remove")
+
+# generate dfm object using quanteda 
+reasons_dfm <- dfm(
+  # Take the token object
+  token_reasons,
+  # Lower the words
+  tolower = TRUE) 
+
+
+# optional command to trim min and max frequency count 
+
+reasons_dfm_trim <-
+  dfm_trim(
+    reasons_dfm,
+    min_docfreq = 0.075,
+    # min 7.5%
+    max_docfreq = 0.95,
+    #  max 90%
+    docfreq_type = "prop"
+  ) 
+
+
+# Get the 30 top features from the DFM
+freq_feature <- topfeatures(reasons_dfm, 30)
+
+# Create a data.frame for ggplot
+data <- data.frame(list(
+  term = names(freq_feature),
+  frequency = unname(freq_feature)
+))
+
+# Plot the plot
+data %>%
+  # Call ggplot
+  ggplot() +
+  # Add geom_segment (this will give us the lines of the lollipops)
+  geom_segment(aes(
+    x = reorder(term, frequency),
+    xend = reorder(term, frequency),
+    y = 0,
+    yend = frequency
+  ), color = "grey") +
+  # Call a point plot with the terms on the x-axis and the frequency on the y-axis
+  geom_point(aes(x = reorder(term, frequency), y = frequency)) +
+  # Flip the plot
+  coord_flip() +
+  # Add labels for the axes
+  xlab("") +
+  ylab("Absolute frequency of the features")
+
+
+meta_data <- dictionary(file = "cdc_raw_reasons.csv") 
+# Generate the DFM with covariates
+reasons_dfm_covariate  <- dfm(reasons_dfm, 
+                # Based on country
+                groups = "country",
+                # And the previously loaded dictionary
+                dictionary = dict)
+
+
+ntopics <- searchK(out$documents, out$vocab, K = c(7, 10), data = meta)
+
+```
+
+
+
+Take 2 - per, https://blogs.uoregon.edu/rclub/2016/04/05/structural-topic-modeling/
+
+```{r}
+reasons_long <- reasons_long %>%
+  rename(document = Reason_Stated) 
+
+# test remove NA from ConfRfor
+#reasons_long <- reasons_long %>%
+  #filter(!is.na(ConfRfor)) 
+
+# uses textProcessor() function from tm package 
+processed <- textProcessor(reasons_long$document, metadata = reasons_long)
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
+
+# run an initial 4-topic fit to explore initial elements in the corpus 
+fit0 <- stm(out$documents, # the documents
+            out$vocab, # the words
+            K = 4, # 10 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral")  
+
+# look at top words
+labelTopics(fit0)
+
+plot.STM(fit0, type = "summary") 
+
+# correlations between topics 
+round(topicCorr(fit0)$cor, 2) # just the correlations between topics
+
+
+```
+
+Model Diagnostics: examining semantic coherence and exclusivity 
+
+```{r, include F}
+# identify best k out of 10 topics 
+ntopics <- searchK(out$documents, out$vocab, K = c(2, 3 , 4, 5, 6, 7, 8, 9, 10), data = meta)
+
+# fit statistics for k = c(2:10) estimations  
+plot(ntopics) 
+
+# selectModel() approach can also be used in addition to searchK() 
+# whereby models are selected that optimize on exclusivity and semantic coherence 
+
+stm_select_mod <- selectModel(out$documents, out$vocab, K = 15, 
+                              prevalence = ~State, max.em.its = 75, data = out$meta, 
+                              runs = 15) 
+
+
+plotModels(stm_select_mod, pch = c(1,2,3,4), legend.position = "bottomright")
+```
+
+
+Reasons For data - Topic Model Comparisons
+
+The following code chunks compare 2, 3, and 4-topic model solutions to select the best one. First, a 2-topic model solution is generated along with corresponding figures, tables, and estimated effect analyses. 
+```{r stm-2-topic}
+
+fit_two <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 2, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral") 
+
+sageLabels(fit_two) # only works with content covariates in the model
+plot(fit_two)
+
+# correlations between topics 
+round(topicCorr(fit0)$cor, 2) # just the correlations between topics
+```
+
+Bar chart for 2-topic model solution fit 
+
+```{r}
+# Turn the STM object into a data frame. This is necessary so that we can work with it.
+td_beta <- tidy(fit_two)
+
+# create re-useable function for subsequent topic model solutions 
+# bar chart uses wesanderson color palettes
+word_probs <- function(td_beta) { 
+  
+  td_beta %>%
+  # Group by topic
+  group_by(topic) %>%
+  # Take the top 10 based on beta
+  top_n(10, beta) %>%
+  # Ungroup
+  ungroup() %>%
+  # Generate the variables topic and term
+  dplyr::mutate(topic = paste0("Topic ", topic),
+                term = reorder_within(term, beta, topic)) %>%
+  # And plot it
+  ggplot() +
+  # Using a bar plot with the terms on the x-axis, the beta on the y-axis, filled by topic
+  geom_col(aes(x = term, y = beta, fill = as.factor(topic)),
+           alpha = 0.8,
+           show.legend = FALSE) +
+  # Do a facet_wrap by topic
+  facet_wrap(~ topic, scales = "free_y") +
+  # And flip the plot
+  coord_flip() +
+  scale_x_reordered() +
+  # Label the x-axis, y-axis, as well as title
+  labs(
+    y = expression(beta),
+    title = "Highest word probabilities for each topic") +
+  # And finally define the colors
+  scale_fill_manual(values = wes_palette("Darjeeling1"))
+  
+  
+  }
+
+# generate bar chart for 2 topic solution
+word_probs(td_beta) 
+
+```
+
+
+```{r}
+# look at highest word probability
+labelTopics(fit_two)
+
+plot.STM(fit_two, type = "labels") 
+
+plot.STM(fit_two, type = "summary", main = "2-Topic Expected Proportions") 
+# look at 
+plot.STM(fit_two, type = "labels", labeltype = c("frex"), main = "2-Topic Solution: Exclusivity")  
+
+# outputs most representative documents for a particular topic
+findThoughts(
+  # Your topic model
+  fit_two,
+  texts = reasons_long, 
+  n = 3, 
+  topics = c(1,2,3)
+)
+```
+
+
+Use model outputs to assign categorical variables for regression 
+
+```{r}
+
+# Attitude 
+est_two_1 <- estimateEffect(1:2 ~ Att_Ave, stmobj = fit_two, metadata = out$meta, 
+                       uncertainty = "None")   
+
+summary(est_two_1) 
+
+# Subjective Norm 
+
+est_two_2 <- estimateEffect(1:2 ~ SN_Ave, stmobj = fit_two, metadata = out$meta, 
+                       uncertainty = "None")   
+
+summary(est_two_2)
+
+# Perceived Control
+
+est_two_3 <- estimateEffect(1:2 ~ PC_Ave, stmobj = fit_two, metadata = out$meta, 
+                       uncertainty = "None")   
+
+summary(est_two_3)
+
+plot(est_two_1, covariate = "Att_Ave", topics = c(1,2), 
+     model = fit_two, 
+     method = "continuous") 
+
+# show the estimated relationship between Topic 1 and Attitude 
+plot(est_two_1, covariate = "Att_Ave", model = fit_two,
+     method = "continuous", xlab = "Attitude", topics = c(1))
+```
+
+
+Generate a 3-topic solution with figures and diagnostics. 
+
+```{r stm-3-topic}
+
+fit_three <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 3, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral") 
+
+sageLabels(fit_three) # only works with content covariates in the model
+plot(fit_three)
+
+# correlations between topics 
+round(topicCorr(fit_three)$cor, 2) #correlations between topics
+
+# highest word probabilities bar chart 
+td_beta <- tidy(fit_three) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(fit_three)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(fit_three, type = "labels", labeltype = c("frex"), main = "3-Topic Solution: Exclusivity")  
+
+# perpsective plot 
+plot.STM(fit_three, type = "perspectives", topics = c(2,3))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(fit_three, type = "summary", main = "3-Topic Expected Proportions") 
+
+
+# custom approach to summarizing topic proportions 
+
+reasons_for_proportions <- make.dt(fit_three) 
+
+summarize_all(reasons_for_proportions, mean)
+
+```
+
+
+Calculate estimated effects for the 3-topic solution
+
+```{r stm-3-topic-estimates}
+
+# Attitude 
+est_three_1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = fit_three, metadata = out$meta, 
+                              uncertainty = "None")    
+
+summary(est_three_1) 
+
+# Subjective Norm 
+
+est_three_2 <- estimateEffect(1:3 ~ SN_Ave, stmobj = fit_three, metadata = out$meta, 
+                       uncertainty = "None")   
+
+summary(est_three_2)
+
+# Perceived Control
+
+est_three_3 <- estimateEffect(1:3 ~ PC_Ave, stmobj = fit_three, metadata = out$meta, 
+                       uncertainty = "None")   
+
+summary(est_three_3)
+
+
+
+plot(est_two_1, covariate = "Att_Ave", topics = c(1,2), 
+     model = fit_two, 
+     method = "continuous") 
+
+# show the estimated relationship between Topic 3 and PC 
+plot(est_three_3, covariate = "PC_Ave", model = fit_three,
+     method = "continuous", xlab = "Perceived Control", topics = c(3))
+
+
+```
+
+
+Generate a 4-topic model solution for comparison
+
+
+```{r stm-4-topic-model}
+
+fit_four <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 4, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral") 
+
+sageLabels(fit_four) # only works with content covariates in the model
+plot(fit_four)
+
+# correlations between topics 
+round(topicCorr(fit_four)$cor, 2) # shows that correlations
+
+
+# highest word probabilities bar chart 
+td_beta <- tidy(fit_four) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(fit_four)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(fit_four, type = "labels", labeltype = c("frex"), main = "4-Topic Solution: Exclusivity")  
+
+# perpsective plot: can add additional context on differentiation b/w two specific topics in the solution
+plot.STM(fit_four, type = "perspectives", topics = c(3,4))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(fit_four, type = "summary", main = "4-Topic Expected Proportion")  
+
+```
+
+
+
+Calculate estimated effects for 4-topic solution 
+
+```{r stm-4-topic-estimates}
+
+# Attitude 
+est_four_1 <- estimateEffect(1:4 ~ Att_Ave, stmobj = fit_four, metadata = out$meta, 
+                             uncertainty = "None")   
+
+summary(est_four_1) 
+
+# Subjective Norm 
+
+est_four_2 <- estimateEffect(1:4 ~ SN_Ave, stmobj = fit_four, metadata = out$meta, 
+                       uncertainty = "None")   
+summary(est_four_2)
+
+# Perceived Control
+
+est_four_3 <- estimateEffect(1:4 ~ PC_Ave, stmobj = fit_four, metadata = out$meta, 
+                       uncertainty = "None")   
+summary(est_four_3)
+
+```
+
+
+
+
+```{r stm-fit-statistics}
+set.seed(6110) 
+# use searchK() function to calculate fit statistics for 2, 3, and 4 topic solutions 
+ntopics <- searchK(out$documents, out$vocab, K = c(2, 3, 4), data = meta)
+
+# grab fit statistic values with the results df 
+ntopics$results
+
+# plot ntopics for fit statistic plots 
+plot(ntopics) 
+
+```
+
+
+
+
+
+Reasons Against Data
+
+Reasons Against data - Topic Model Comparisons
+
+The following code chunks compare 2, 3, and 4-topic model solutions to select the best model for the reasons against data. First, a 2-topic model solution is generated along with corresponding figures, tables, and estimated effect analyses. 
+
+
+```{r Against-Data-Cleaning}
+# rename columns
+
+against <- dat %>%
+   rename(Against1 = Q33_1, Against2 = Q33_2, Against3 = Q33_3, 
+          Against4 = Q33_4, Against5 = Q33_5, Against6 = Q33_6, Against7 = Q33_7, 
+          Against8 = Q33_8, Against9 = Q33_9, Against10 = Q33_10)  
+
+
+# first add unique participant id 
+against1 <- against %>%
+  mutate(participant_id = 1:length(Decision))
+
+# use duplicated() to check that each participant_id is unique 
+duplicated(against1[ ,c("participant_id")])
+
+# after confirming that all ids are unique
+# create one data set of reasons that will be 
+# used to convert from wide to long format 
+
+against_df <- against1 %>%
+  select(participant_id, Against1, Against2, Against3, Against4, 
+         Against5, Against6, Against7, Against8, Against9, Against10)  
+
+# first convert reasons to long data format
+against_long <- against_df %>%
+  gather(key = "Against", 
+         value = "Against_Stated", c(-participant_id)) 
+
+
+# next create a subset of the original data without the reasons data
+# instead, retain only the BRT and decision variable scores to reattach
+# to the long data frame
+
+against_to_merge <- against1 %>%
+  select(participant_id, ConfRfor, ConfRag, Att_Ave, SN_Ave, PC_Ave, MacroReasoning, 
+         SN_general_Ave, SN_work_Ave, ProReas, ConReas, State)
+
+# now, merge with the long formatted reasons data and merge by participant_id
+
+against_formatted <- merge(x = against_long, 
+                           y = against_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+
+# finally remove rows with NA values 
+
+against_long <- against_formatted %>%
+  filter(!is.na(Against_Stated)) 
+
+
+# add row_id, which will be used after creating topic model
+# to re-assign the topic model output back to the unique row id 
+against_long$row_id <- paste(1:nrow(against_long))
+```
+
+
+STM processing and model diagnostics 
+```{r}
+
+# renmae Against_Stated to 'document' for tm processing 
+against_long <- against_long %>%
+  rename(document = Against_Stated) 
+
+# uses textProcessor() function from tm package 
+against_processed <- textProcessor(against_long$document, metadata = against_long)
+
+against_out <- prepDocuments(against_processed$documents, 
+                             against_processed$vocab, 
+                             against_processed$meta)
+
+
+# two methods for identifying model fit 
+
+# identify best k = c(2:10)
+against_ntopics <- searchK(against_out$documents, against_out$vocab, K = c(2, 3, 4, 5, 6, 7, 8, 9, 10), data = meta)
+plot(against_ntopics)
+
+# show comparison of fit statistics for k = c(2:4)
+against_ntopics <- searchK(against_out$documents, against_out$vocab, K = c(2, 3, 4), data = meta)
+# plot fit statistic values for solutions on reasons against data 
+plot(against_ntopics)
+
+# grab fit statistics for topic model solutions on reasons against data 
+against_ntopics$results
+
+```
+
+
+2-topic model solution for reasons against data 
+
+```{r against-2-topic-solution}
+
+against_fit_two <- stm(against_out$documents, # the documents
+            against_out$vocab, # the words
+            K = 2, # 3 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = against_out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral")  
+
+
+
+# highest word probabilities bar chart 
+td_beta <- tidy(against_fit_two) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(against_fit_two)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(against_fit_two, type = "labels", labeltype = c("frex"), main = "2-Topic Solution: Exclusivity")  
+
+# perpsective plot: can add additional context on differentiation b/w two specific topics in the solution
+plot.STM(against_fit_two, type = "perspectives", topics = c(1,2))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(against_fit_two, type = "summary", main = "2-Topic Expected Proportion")  
+
+# look at top words by category
+labelTopics(against_fit_two)
+
+```
+
+
+
+2-topic solution, Reasons Against - Estimated Effects 
+```{r}
+
+# Attitude 
+against_est_two_1 <- estimateEffect(1:2 ~ Att_Ave, stmobj = against_fit_two, metadata = against_out$meta, 
+                                    uncertainty = "None")    
+
+summary(against_est_two_1) 
+
+# Subjective Norm 
+
+against_est_two_2 <- estimateEffect(1:2 ~ SN_Ave, stmobj = against_fit_two, metadata = against_out$meta, 
+                       uncertainty = "None")   
+summary(against_est_two_2)
+
+# Perceived Control
+
+against_est_two_3 <- estimateEffect(1:2 ~ PC_Ave, stmobj = against_fit_two, metadata = against_out$meta, 
+                       uncertainty = "None")   
+summary(against_est_two_3)
+```
+
+
+
+3-topic model solution for reasons against data 
+
+```{r}
+
+against_fit_three <- stm(against_out$documents, # the documents
+            against_out$vocab, # the words
+            K = 3, # 3 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = against_out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral")  
+
+
+
+# highest word probabilities bar chart 
+td_beta <- tidy(against_fit_three) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(against_fit_three)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(against_fit_three, type = "labels", labeltype = c("frex"), main = "3-Topic Solution: Exclusivity")  
+
+# perpsective plot: can add additional context on differentiation b/w two specific topics in the solution
+plot.STM(against_fit_three, type = "perspectives", topics = c(1,2))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(against_fit_three, type = "summary", main = "3-Topic Expected Proportion")  
+
+# look at top words by category
+labelTopics(against_fit_three)
+
+# custom proption of topic in overall corpus for 3-topic model 
+
+reasons_against_prop <- make.dt(against_fit_three)
+
+summarize_all(reasons_against_prop, mean) 
+
+
+```
+
+
+Reasons Against Estimated Effects 3-topic solution 
+
+```{r}
+
+# Attitude 
+set.seed(1061) 
+against_est_three_1 <- estimateEffect(1:3 ~ Att_Ave, stmobj = against_fit_three, metadata = against_out$meta, 
+                                    uncertainty = "None")    
+
+summary(against_est_three_1) 
+
+# Subjective Norm 
+
+against_est_three_2 <- estimateEffect(1:3 ~ SN_Ave, stmobj = against_fit_three, metadata = against_out$meta, 
+                       uncertainty = "None")   
+summary(against_est_three_2)
+
+# Perceived Control
+
+against_est_three_3 <- estimateEffect(1:3 ~ PC_Ave, stmobj = against_fit_three, metadata = against_out$meta, 
+                       uncertainty = "None")   
+summary(against_est_three_3)
+
+
+# show the estimated relationship between Against Topic 3 and PC 
+plot(against_est_three_1, covariate = "Att_Ave", model = against_fit_three,
+     method = "continuous", xlab = "Attitude", topics = c(1, 2), 
+     main = "Attitude by Topic 1 and Topic 2 \n in Reasons Against")  
+
+
+```
+
+
+4-topic model solution for reasons against data 
+
+
+```{r stm-against-4-topic-model}
+
+against_fit_four <- stm(against_out$documents, # the documents
+            against_out$vocab, # the words
+            K = 4, 
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = against_out$meta, # all the variables (we're not actually including any predictors in this model, though)
+            init.type = "Spectral")  
+
+
+
+# highest word probabilities bar chart 
+td_beta <- tidy(against_fit_four) 
+word_probs(td_beta)
+
+# look at highest word probability
+labelTopics(against_fit_four)
+
+# top terms conditioning on exclusivity of terms by between topics 
+plot.STM(against_fit_four, type = "labels", labeltype = c("frex"), main = "4-Topic Solution: Exclusivity")  
+
+# perpsective plot: can add additional context on differentiation b/w two specific topics in the solution
+plot.STM(against_fit_four, type = "perspectives", topics = c(1,2))   
+
+# expected proportion of topics in all reasons for data 
+plot.STM(against_fit_four, type = "summary", main = "4-Topic Expected Proportion")  
+
+# look at top words by category
+labelTopics(against_fit_four)
+```
+
+
+Reasons Against Estimated Effects 3-topic solution 
+
+```{r 4-topic-estimated-effects}
+
+# Attitude 
+set.seed(10826) 
+against_est_four_1 <- estimateEffect(1:4 ~ Att_Ave, stmobj = against_fit_four, metadata = against_out$meta, 
+                                    uncertainty = "None")    
+
+summary(against_est_four_1) 
+
+# Subjective Norm 
+
+against_est_four_2 <- estimateEffect(1:4 ~ SN_Ave, stmobj = against_fit_four, metadata = against_out$meta, 
+                       uncertainty = "None")   
+summary(against_est_four_2)
+
+# Perceived Control
+
+against_est_four_3 <- estimateEffect(1:4 ~ PC_Ave, stmobj = against_fit_four, metadata = against_out$meta, 
+                       uncertainty = "None")   
+summary(against_est_four_3)
+
+
+# show the estimated relationship between Against Topic 3 and PC 
+plot(against_est_four_1, covariate = "Att_Ave", model = against_fit_four,
+     method = "continuous", xlab = "Attitude", topics = c(3), 
+     main = "Attitude by Topic 3 \n in Reasons Against")  
+
+
+```
+
+
+
+
+
+
+
+
