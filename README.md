@@ -11,7 +11,7 @@ This repository contains Natural Language Processing R code for research conduct
 
 ### Studies 
 
-1. Westaby et al. (Forthcoming). _Understanding Compliance and Hesitancy toward the National Covid-19 Safety Guidelines in Public and Workforce Settings: Using Behavioral Reasoning Theory to Advance New Insights in Comparison to the Theory of Planned Behavior_.
+1. Westaby et al. (Manuscript submitted for publication). _Understanding Compliance and Hesitancy toward the National Covid-19 Safety Guidelines in Public and Workforce Settings: Using Behavioral Reasoning Theory to Advance New Insights in Comparison to the Theory of Planned Behavior_.
  
 2. Zlupko & Westaby (in progress). _Using Natural Language Processing to Identify the Substantive Reasoning Underlying Behavior: An Application to Employees’ Behavior to Work-From-Home During COVID-19_. 
 
