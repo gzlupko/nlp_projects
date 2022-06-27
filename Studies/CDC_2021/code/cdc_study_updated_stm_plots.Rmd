@@ -138,6 +138,46 @@ plot(fit_reasons_for_k2)
 round(topicCorr(fit_reasons_for_k2)$cor, 2) # just the correlations between topics
 ```
 
+
+Reasons for K = 3, 4 and 5 
+
+
+```{r}
+
+model_fit_k3 <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 3, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, 
+            init.type = "Spectral") 
+
+model_fit_k4 <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 4, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, 
+            init.type = "Spectral") 
+
+model_fit_k5 <- stm(out$documents, # the documents
+            out$vocab, # covariates expected to affect topic content 
+            prevalence =~ participant_id + State,
+            K = 5, # 2 topics
+            max.em.its = 75, # set to run for a maximum of 75 EM iterations
+            data = out$meta, 
+            init.type = "Spectral") 
+
+# save the .Rdata file to use stm objects with the stminsights package 
+setwd("/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
+save.image(file="cdc_study_stminsights.Rdata")  
+
+
+```
+
+
+
+
 Bar chart for 2-topic model solution fit 
 
 ```{r}
