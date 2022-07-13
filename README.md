@@ -1,6 +1,6 @@
 # NLP Code for Dynamic Network Lab Research
 
-This repository contains Natural Language Processing R code for research conducted by the Dynamic Network Lab at Columbia University.
+This repository contains Natural Language Processing (NLP) and text mining techiques conducted in R for social science and organizational research. 
 
 
 ## Table of Contents 
