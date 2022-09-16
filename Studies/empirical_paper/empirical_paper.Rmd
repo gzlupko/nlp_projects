@@ -1,8 +1,9 @@
 ---
-title: "CDC_Analysis"
+title: "Gian Zlupko Empirical Paper"
 output: html_notebook
 ---
 
+# Libraries and Setup 
 Data analysis related to CDC compliance behaviors (2021) 
 
 ```{r Libraries-and-Path, include = F}
@@ -17,11 +18,10 @@ library(tm)
 library(car) 
 library(stm) 
 library(wesanderson)
-#require("knitr")
-#opts_knit$set(root.dir = "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
+
 ```
 
-
+# Data Cleaning 
 
 ```{r Data-Cleaning}
 # load raw data and begin conversion to long data format 
@@ -94,6 +94,10 @@ reasons_long$row_id <- paste(1:nrow(reasons_long))
 ```
 
 
+# Topic Modeling
+
+
+## Text Pre-processing 
 
 Structural Topic Modeling Framework
 Resources: 
@@ -134,6 +138,9 @@ round(topicCorr(fit0)$cor, 2) # just the correlations between topics
 
 ```
 
+
+## Evaluate Model Fit 
+
 Model Diagnostics: examining semantic coherence and exclusivity 
 
 ```{r, include F}
@@ -155,6 +162,8 @@ plotModels(stm_select_mod, pch = c(1,2,3,4), legend.position = "bottomright")
 ```
 
 
+## Topics: Reasons for decision 
+
 Reasons For data - Topic Model Comparisons
 
 The following code chunks compare 2, 3, and 4-topic model solutions to select the best one. First, a 2-topic model solution is generated along with corresponding figures, tables, and estimated effect analyses. 
@@ -174,6 +183,8 @@ plot(fit_two)
 # correlations between topics 
 round(topicCorr(fit0)$cor, 2) # just the correlations between topics
 ```
+
+
 
 Bar chart for 2-topic model solution fit 
 
@@ -220,6 +231,7 @@ word_probs <- function(td_beta) {
 word_probs(td_beta) 
 
 ```
+
 
 
 ```{r}
@@ -462,7 +474,7 @@ plot(ntopics)
 
 
 
-
+## Topics: Reasons Against decision
 
 Reasons Against Data
 
@@ -768,8 +780,104 @@ plot(against_est_four_1, covariate = "Att_Ave", model = against_fit_four,
 
 
 
+# Descriptive Statistics 
 
 
 
+## Counts and summaries 
+
+Median character count, total words, total unique words ... 
+
+
+
+
+# N-Grams 
+
+
+## Most common n-grams (full corpus) 
+
+
+
+
+## N-grams by focal groups
+
+The following code chunk visualizes different sets of top word co-occurances by groups: 
+
+
+
+
+
+```{r}
+# bigrams for ___ 
+occupation_bigrams %>%
+  filter(occupation_group == "group1") %>% # to update filter by
+  count(bigram) %>% arrange(desc(n)) %>% head(5) %>%
+  ggplot(aes(x = reorder(bigram, n), y = n, fill = bigram)) + geom_bar(stat = "identity") + 
+  coord_flip() + theme(legend.position = "none") + 
+  xlab("Bigram") + ylab("Freq.") 
+
+
+
+```
+
+
+
+# Sentiment Analysis 
+
+Classify response sentiment using the pre-trained Vader dictionary in Python. Then, return to R for subsequent analysis. 
+
+```{python}
+# store df in python from r 
+# to update with new data  
+
+df_complete = r.df_complete
+
+# libaries 
+import numpy as np
+import pandas as pd
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import WordPunctTokenizer
+from nltk.stem.wordnet import WordNetLemmatizer
+import matplotlib.pyplot as plt
+
+
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+# Creating instance
+analyzer = SentimentIntensityAnalyzer()
+april_sent = april_complete.copy(deep = True)
+april_sent['Positive'] = [analyzer.polarity_scores(x)['pos'] for x in april_sent['Q16_workload']]
+april_sent['Negative'] = [analyzer.polarity_scores(x)['neg'] for x in april_sent['Q16_workload']]
+april_sent['Neutral'] = [analyzer.polarity_scores(x)['neu'] for x in april_sent['Q16_workload']]
+april_sent['Compound'] = [analyzer.polarity_scores(x)['compound'] for x in april_sent['Q16_workload']]
+april_sent['Positive'] = april_sent['Positive'].round(2)*100
+april_sent['Negative'] = april_sent['Negative'].round(2)*100
+april_sent['Neutral'] = april_sent['Neutral'].round(2)*100
+april_sent['Compound'] = april_sent['Compound'].round(2)*100
+april_sent.head()
+```
+
+Following classification in Python, import back into R. 
+
+```{r}
+
+# import df from python
+# to update with new data
+
+df_sentiment <- py$df_sent
+
+april_sentiment %>%
+  select(mseo_group, supervisory, center, Positive, Negative, 
+         Neutral, Compound) 
+
+lm(Positive ~  group_1 + supervisory, 
+   data = april_sentiment)  %>% summary() 
+
+april_sentiment %>%
+  ggplot(aes(x = Negative, y = Positive, 
+             color = group_1)) + geom_point() + 
+  geom_smooth(method = "lm") + xlim(0,50) + ylim(0,60) 
+  
+```
 
 
