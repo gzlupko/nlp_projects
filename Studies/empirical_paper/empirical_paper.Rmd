@@ -3,10 +3,15 @@ title: "Gian Zlupko Empirical Paper"
 output: html_notebook
 ---
 
-# Libraries and Setup 
-Data analysis related to CDC compliance behaviors (2021) 
+# Empirical Paper 
+## Using Natural Language Processing to Identify the Substantive Reasoning Underlying Behavior: An Application to Employees’ Behavior to Work-From-Home During COVID-19
 
-```{r Libraries-and-Path, include = F}
+[Study overview]
+
+
+## Libraries and Setup 
+
+```{r Libraries-and-Path, include = F, message = F}
 
 library(tidytext) 
 library(tidyverse)
@@ -18,40 +23,68 @@ library(tm)
 library(car) 
 library(stm) 
 library(wesanderson)
+library(readxl) 
 
 ```
 
-# Data Cleaning 
+## Data Cleaning 
 
 ```{r Data-Cleaning}
+# set temporary working directory 
+setwd("/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/empirical_paper")
 # load raw data and begin conversion to long data format 
-# this row for reasons only data (no state or vax covariates)
-#dat <- read_csv("cdc_raw_reasons.csv")
+dat <- read_excel("remote_work_empirical_data.xlsx") 
 
-# this row for covariates included in broader data set: state and vax
-dat <- read_csv("cdc_full_data.csv")
+# store a raw data set to for backup 
+raw_data <- dat
 
-# rename columns
+# view data set 
+head(dat) 
 
-dat <- dat %>%
+```
+
+Six individuals that did not pass attention checks were manually removed before importing the data set. 45 did not complete the survey. Their rows were removed. Regarding T2 retention rate, 65 individuals of the 399 who completed the survey at T1 did not return. Thus, we observed a retention rate of 83.7%. 
+
+```{r}
+# remove individuals that did not complete the survey; 45 did not complete the survey 
+dat_1 <- dat %>% 
+  filter(!Finished == 0) 
+
+# how many individuals (who finished T1) completed the survey at T2? - We see that 65 did not complete T2. 
+dat_1 %>% 
+  filter(is.na(T2_JobSat_Ave)) 
+
+T2_retention_rate <- (399-65)/399*100
+T2_retention_rate
+
+# T2 sample size 
+399 - 65
+
+# power analysis - come back to this as needed. 
+library(pwr) 
+```
+
+## Reshape data from wide to long format 
+
+First I clean column names and assign a unique ID to participants. Then, I break out the full data set into a reasons for the decision and reasons against the decision. I apply topic modeling and sentiment analysis to these data sets individually. Then, after reporting on results from the text analysis, I use the participant's unique ID that I created to bring the NLP features (topic proportions and sentiment scores) back into the original data set to estimate regression equations containing the NLP features with the additional variables in the data set: T2 behavior (DV), burnout (covariate), and job satisfaction (covariate). 
+
+```{r}
+# rename columns and store in 
+dat_clean <- dat_1 %>%
    rename(Decision = Q4, Reason1 = Q12_1, Reason2 = Q12_2, Reason3 = Q12_3, 
           Reason4 = Q12_4, Reason5 = Q12_5, Reason6 = Q12_6, Reason7 = Q12_7, 
-          Reason8 = Q12_8, Reason9 = Q12_9, Reason10 = Q12_10)  
+          Reason8 = Q12_8, Reason9 = Q12_9, Reason10 = Q12_10, Against1 = Q33_1, Against2 = Q33_2, Against3 = Q33_3, 
+          Against4 = Q33_4, Against5 = Q33_5, Against6 = Q33_6, Against7 = Q33_7, 
+          Against8 = Q33_8, Against9 = Q33_9, Against10 = Q33_10, 
+          job_sat = T2_JobSat_Ave, behavior_ave = T2_Behavior_3Item_Ave, burnout = T2_Burnout_4Item_Ave)  
 
-# rename additional columns to shorter headers 
-dat <- dat %>%
-  rename(MacroReasoning = MacroReasoning_3_items_standardized_Ave)
 
-
-# first add unique participant id 
-dat1 <- dat %>%
+# add unique participant id with simple sequence 1:N; this is used to later link transformed data back to individual
+dat_clean <- dat_clean %>%
   mutate(participant_id = 1:length(Decision))
 
-# use duplicated() to check that each participant_id is unique 
-duplicated(dat1[ ,c("participant_id")])
 
-# after confirming that all ids are unique
-# create one data set of reasons that will be 
+# create one data set 
 # used to convert from wide to long format 
 
 dat2 <- dat1 %>%
@@ -90,8 +123,10 @@ reasons_long <- reasons_formatted %>%
 # to re-assign the topic model output back to the unique row id 
 reasons_long$row_id <- paste(1:nrow(reasons_long))
 
-
 ```
+
+
+
 
 
 # Topic Modeling
@@ -162,7 +197,7 @@ plotModels(stm_select_mod, pch = c(1,2,3,4), legend.position = "bottomright")
 ```
 
 
-## Topics: Reasons for decision 
+## Topics: Reasons for decision to work remote
 
 Reasons For data - Topic Model Comparisons
 
