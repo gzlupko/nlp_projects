@@ -21,10 +21,11 @@ library(textstem)
 library(SnowballC) 
 library(tm)
 library(car) 
-library(stm) 
+library(stm) # structural topic model 
 library(wesanderson)
-library(readxl) 
-
+library(readxl) # to import xlsx file 
+library(xlsx) # to write to xlsx file 
+library(psych) # useful for descriptive stats 
 ```
 
 ## Data Cleaning 
@@ -66,7 +67,9 @@ library(pwr)
 
 ## Reshape data from wide to long format 
 
-First I clean column names and assign a unique ID to participants. Then, I break out the full data set into a reasons for the decision and reasons against the decision. I apply topic modeling and sentiment analysis to these data sets individually. Then, after reporting on results from the text analysis, I use the participant's unique ID that I created to bring the NLP features (topic proportions and sentiment scores) back into the original data set to estimate regression equations containing the NLP features with the additional variables in the data set: T2 behavior (DV), burnout (covariate), and job satisfaction (covariate). 
+First I clean column names and assign a unique ID to participants. Then, I break out the full data set into a reasons for the decision and reasons against the decision. I apply topic modeling and sentiment analysis to these data sets individually. Then, after reporting on results from the text analysis, I use the participant's unique ID that I created to bring the NLP features (topic proportions and sentiment scores) back into the original data set to estimate regression equations containing the NLP features with the additional variables in the data set: T2 behavior (DV), burnout (DV), and job satisfaction (covariate). 
+
+By reshaping the data, converting from wide to long format, each reason is first analyzed 
 
 ```{r}
 # rename columns and store in 
@@ -84,15 +87,15 @@ dat_clean <- dat_clean %>%
   mutate(participant_id = 1:length(Decision))
 
 
-# create one data set 
+# create one data set for reasons for containing reasons data and participant ID 
 # used to convert from wide to long format 
 
-dat2 <- dat1 %>%
+reasons_data <- dat_clean %>%
   select(participant_id, Reason1, Reason2, Reason3, Reason3, 
          Reason4, Reason5, Reason6, Reason7, Reason8, Reason9, Reason10)  
 
 # first convert reasons to long data format
-data_long <- dat2 %>%
+reasons_long <- reasons_data %>%
   gather(key = "Reason", 
          value = "Reason_Stated", c(-participant_id)) 
 
@@ -101,31 +104,59 @@ data_long <- dat2 %>%
 # instead, retain only the BRT and decision variable scores to reattach
 # to the long data frame
 
-scores_to_merge <- dat1 %>%
-  select(participant_id, ConfRfor, ConfRag, Att_Ave, SN_Ave, PC_Ave, MacroReasoning, 
-         SN_general_Ave, SN_work_Ave, ProReas, ConReas, State)
+scores_to_merge <- dat_clean %>%
+  select(participant_id, behavior_ave, burnout, job_sat)
 
 # now, merge with the long formatted reasons data and merge by participant_id
 
-reasons_formatted <- merge(x = data_long, 
+reasons_formatted <- merge(x = reasons_long, 
                            y = scores_to_merge, 
                            by = "participant_id", 
                            all.y = T)
 
+reasons_formatted 
 
 # finally remove rows with NA values 
-
 reasons_long <- reasons_formatted %>%
   filter(!is.na(Reason_Stated)) 
-
 
 # add row_id, which will be used after creating topic model
 # to re-assign the topic model output back to the unique row id 
 reasons_long$row_id <- paste(1:nrow(reasons_long))
 
+
+# write transformed data set to local to store a copy
+#write.xlsx(reasons_long, "reasons_long_formatted.xlsx") 
+
 ```
 
 
+# Text Descriptives
+
+Examining the raw text. 
+
+* 4.7 reasons per participant on average  
+    + SD = 2.1 
+    + median = 4 
+    + min = 1, max = 10 
+  
+
+```{r}
+
+# how many reasons provided by participants on average? 
+
+reasons_for_count <- reasons_long %>% 
+  group_by(participant_id) %>% 
+  count(participant_id) 
+
+mean(reasons_for_count$n) 
+
+# descriptives on reason count data 
+psych::describe(reasons_for_count$n)
+  
+
+
+```
 
 
 
@@ -143,6 +174,7 @@ https://cran.r-project.org/web/packages/stm/vignettes/stmVignette.pdf
 https://blogs.uoregon.edu/rclub/2016/04/05/structural-topic-modeling/
 
 ```{r}
+# rename 'reasons stated' to 'document' as the STM model takes a column titled 'document' as input 
 reasons_long <- reasons_long %>%
   rename(document = Reason_Stated) 
 
