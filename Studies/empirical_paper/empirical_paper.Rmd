@@ -140,6 +140,12 @@ Examining the raw text.
     + SD = 2.1 
     + median = 4 
     + min = 1, max = 10 
+    
+* Median character count is 21 
+    + mean = 24.6 
+    + SD = 16.32 
+    + min = 3, max = 173 
+    + 
   
 ```{r}
 
@@ -153,6 +159,22 @@ mean(reasons_for_count$n)
 
 # descriptives on reason count data 
 psych::describe(reasons_for_count$n)
+
+# word counts and averages 
+
+
+# calculate average characters for employee responses in Q16 
+
+reasons_char_counts <- reasons_long %>%
+  mutate(num = nchar(Reason_Stated)) %>%
+   select(num, Reason_Stated)
+
+reasons_char_counts %>% summary() 
+
+describe(reasons_char_counts$num) 
+
+
+
 
 ```
 # Text Features 
@@ -196,6 +218,22 @@ reasons_with_features
 ```
 
 
+## Text Variables - Descriptive Stats 
+
+Run descriptive summaries of text variables 
+
+```{r}
+
+# summary stats on text data 
+reasons_for_descriptives <- describe(reasons_with_features)
+
+# save text descriptives 
+#write.xlsx(reasons_for_descriptives, "reasons_for_descriptives.xlsx") 
+  
+
+```
+
+
 # Text Pre-processing 
 
 The following code uses the `textProcessor()` function in the `stm` package, which
@@ -221,14 +259,84 @@ meta <- processed
 
 ```
 
+## Thresholds 
 
-# Model Diagnostics 
+By default, `prepDocuments` removes words that appear in only one document. Users
+can see which documents (e.g. survey responses) had terms removed. If any responses
+had no words or the default threshold (e.g. 1), then those are removed as well. Users
+can also examine which documents were dropped. 
 
+Below, the `plotRemoved` function allows a researcher to iteratively
+tune a threshold parameter to adjust the minimum number of responses that 
+a word needs to appear in to be included in subsequent topic modeling.
+
+As an example, requiring that terms appear in at least 5 documents would remove 
+4,103 of 5,442 words in the corpus after pre-processing. Depending on the analysts' goal, 
+this could be good or bad. An analyst may consider fine tuning the minimum threshold 
+parameter in an iterative fashion to achieve desirable results.  
+
+Upper thresholds can also be passed through the `prepDocuments` function 
+to remove words that appear in too many responses. 
+
+
+Currently setting lower threshold to 3, which may be smaller lower threshold for other studies, but is intended to be more inclusive in this study given the short text responses. 
 ```{r}
 
+# default threshold: 1
+out <- prepDocuments(processed$documents, processed$vocab)
+
+# explore minimum threshold 
+plotRemoved(processed$documents, lower.thresh = seq(1, 50, by = 1)) 
+
+# set lower threshold of 5, requiring words to appear in at least 5 reasons stated in order to be included in the analysis
+
+out <- prepDocuments(documents = processed$documents,
+              vocab = processed$vocab,
+              meta = processed$meta, 
+              lower.thresh = 3) 
 
 
 ```
+
+
+# Topic Modeling
+
+## Model Diagnostics 
+
+There are multiple evaluation strategies available. First, researchers can fit topic models across k topics and evaluate model fit and human interpretability based on various criteria developed by researchers. Below  to consider
+
+The function `searchK` allows users to use a data-driven approach to identifying
+the number of latent topics. Specifically, the
+
+```{r}
+
+ntopics <- searchK(out$documents, out$vocab, K = c(2,3,4,5,6,7,8,9,10), 
+                   data = meta)
+
+# plot the topic diagnostic outputs 
+plot(ntopics) 
+
+```
+
+
+
+```{r}
+
+stm_select_mod <- selectModel(out$documents, out$vocab, K = 3, max.em.its = 75, data = out$meta, runs = 20, seed = 10210)  
+
+# average semantic coherence score and exclusivity 
+# model numerals are shown. Top 4 models are plotted. Models in the top right are best (e.g. high exclusivity and coherence closer to zero)
+plotModels(stm_select_mod, pch = c(4,5,6,7),legend.position = "bottomright")
+
+# select Model 1, which is seen as being the most optimized on exclusivity and coherence 
+# numbers represent the average for each model and dots represent individual scores 
+selectedmodel <- stm_select_mod$runout[[1]]
+
+```
+
+
+
+
 
 
 # Topic Modeling
