@@ -61,8 +61,6 @@ T2_retention_rate
 # T2 sample size 
 399 - 65
 
-# power analysis - come back to this as needed. 
-library(pwr) 
 ```
 
 ## Reshape data from wide to long format 
@@ -133,6 +131,9 @@ reasons_long$row_id <- paste(1:nrow(reasons_long))
 
 # Text Descriptives
 
+First, of interest to Behavioral Reasoning Theory (BRT) research, I examine the number of reasons for the decision stated by the participants. Next, before calculating additional descriptive statistics, I need to transform the text data into 
+
+### Number of Reasons Stated 
 Examining the raw text. 
 
 * 4.7 reasons per participant on average  
@@ -140,7 +141,6 @@ Examining the raw text.
     + median = 4 
     + min = 1, max = 10 
   
-
 ```{r}
 
 # how many reasons provided by participants on average? 
@@ -157,6 +157,9 @@ psych::describe(reasons_for_count$n)
 
 
 ```
+
+
+### 
 
 
 
