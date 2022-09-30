@@ -153,14 +153,82 @@ mean(reasons_for_count$n)
 
 # descriptives on reason count data 
 psych::describe(reasons_for_count$n)
-  
+
+```
+# Text Features 
+
+Generate text features like sentiment scores and point-of-speech metrics using the `textfeatures` package in R. I ran this function before pre-processing as these features may benefit from more information captured by stop words and punctuation. 
+
+```{r}
+library(textfeatures) 
+
+# run textfeatures workhorse function
+
+reasons_for_features <- textfeatures(reasons_long$Reason_Stated,
+                                     sentiment = TRUE, 
+                                     word_dims = FALSE, 
+                                  normalize = FALSE) 
+
+reasons_long 
+# inspect newly generated features 
+reasons_for_features <- reasons_for_features %>% 
+  select(n_chars, n_uq_chars, n_words, n_uq_words, sent_afinn, sent_bing, 
+         sent_syuzhet, sent_vader, n_polite, n_first_person, n_first_personp, n_second_person, n_second_personp, n_third_person) 
+
+reasons_for_features <- reasons_for_features %>% 
+  mutate(row_id = seq(nrow(reasons_for_features))) 
+
+# convert reasons long row_id column to numeric to perform data join 
+reasons_long$row_id <- as.numeric(reasons_long$row_id) 
+
+# join text features to data with 
+
+reasons_with_features <- reasons_long %>% 
+  left_join(reasons_for_features) 
+
+# inspect newly created data set with text features added to reasons data
+reasons_with_features 
+
+# save a copy of this data set to local 
+#write.xlsx(reasons_with_features, "reasons_for_with_features.xlsx")
 
 
 ```
 
 
-### 
+# Text Pre-processing 
 
+The following code uses the `textProcessor()` function in the `stm` package, which
+
+
+```{r}
+
+# rename 'Reasons_Stated' column to 'document', which the topic model takes
+reasons_with_features <- reasons_with_features %>%
+  rename(document = Reason_Stated) 
+
+# run data frame through basic pre-processing: remove punctuation, 
+# stop words, custom stop words, numbers, and stem.
+
+processed <- textProcessor(documents = reasons_with_features$document, 
+                           metadata = reasons_with_features)   
+
+# store processed objects to inspect pre-processing applied 
+
+docs <- processed$documents
+vocab <- processed$vocab
+meta <- processed
+
+```
+
+
+# Model Diagnostics 
+
+```{r}
+
+
+
+```
 
 
 # Topic Modeling
