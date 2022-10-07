@@ -128,6 +128,49 @@ reasons_long$row_id <- paste(1:nrow(reasons_long))
 
 ```
 
+## Reshape Reasons Against Data 
+
+```{r}
+
+# subset dat_clean for reasons against data 
+
+against_data <- dat_clean %>% 
+  select(participant_id, Against1:Against10)  
+
+# convert against data to long 
+
+# first convert reasons to long data format
+against_long <- against_data %>%
+  gather(key = "Against", 
+         value = "Against_Stated", c(-participant_id)) 
+
+
+# merge against data in long format with the DVs in 'scores_to_merge' 
+against_formatted <- merge(x = against_long, 
+                           y = scores_to_merge, 
+                           by = "participant_id", 
+                           all.y = T)
+
+# 
+
+# finally remove rows with NA values 
+against_long <- against_formatted %>%
+  filter(!is.na(Against_Stated)) 
+
+# add row_id, which will be used after creating topic model
+# to re-assign the topic model output back to the unique row id 
+against_long$row_id <- paste(1:nrow(against_long))
+
+# write transformed data set to local to store a copy
+#write.xlsx(against_long, "against_long_formatted.xlsx") 
+
+against_long
+
+```
+
+
+
+
 
 # Text Descriptives
 
@@ -156,12 +199,12 @@ reasons_for_count <- reasons_long %>%
   count(participant_id) 
 
 mean(reasons_for_count$n) 
+skew(reasons_for_count) 
 
 # descriptives on reason count data 
 psych::describe(reasons_for_count$n)
 
 # word counts and averages 
-
 
 # calculate average characters for employee responses in Q16 
 
@@ -173,13 +216,29 @@ reasons_char_counts %>% summary()
 
 describe(reasons_char_counts$num) 
 
+describe(reasons_for_count$n) 
 
 
 
 ```
+### Number of Reasons Against Stated 
+
+
+```{r}
+# how many against provided by participants on average? 
+
+against_count <- against_long %>% 
+  group_by(participant_id) %>% 
+  count(participant_id) 
+
+describe(against_count$n) 
+
+```
+
+
 # Text Features 
 
-Generate text features like sentiment scores and point-of-speech metrics using the `textfeatures` package in R. I ran this function before pre-processing as these features may benefit from more information captured by stop words and punctuation. 
+Generate text features like sentiment scores and point-of-speech metrics using the `textfeatures` package in R. I ran this function before pre-processing as these features may benefit from more information captured by stop words and punctuation. First, I do this for the reasons for data below. 
 
 ```{r}
 library(textfeatures) 
@@ -218,20 +277,76 @@ reasons_with_features
 ```
 
 
+Next I do the same for the reasons against data 
+
+```{r}
+
+# run textfeatures workhorse function
+
+against_features <- textfeatures(against_long$Against_Stated,
+                                     sentiment = TRUE, 
+                                     word_dims = FALSE, 
+                                  normalize = FALSE) 
+
+
+# inspect newly generated features 
+agaist_features <- against_features %>% 
+  select(n_chars, n_uq_chars, n_words, n_uq_words, sent_afinn, sent_bing, 
+         sent_syuzhet, sent_vader, n_polite, n_first_person, n_first_personp, n_second_person, n_second_personp, n_third_person) 
+
+against_features <- against_features %>% 
+  mutate(row_id = seq(nrow(against_features))) 
+
+# convert reasons long row_id column to numeric to perform data join 
+against_long$row_id <- as.numeric(against_long$row_id) 
+
+# join text features to data with 
+
+against_with_features <- against_long %>% 
+  left_join(against_features) 
+
+# inspect newly created data set with text features added to reasons data
+against_with_features 
+
+# save a copy of this data set to local 
+#write.xlsx(against_with_features, "against_with_features.xlsx")
+
+
+```
+
+
+
+
+
+
 ## Text Variables - Descriptive Stats 
 
 Run descriptive summaries of text variables 
 
 ```{r}
-
 # summary stats on text data 
 reasons_for_descriptives <- describe(reasons_with_features)
 
 # save text descriptives 
 #write.xlsx(reasons_for_descriptives, "reasons_for_descriptives.xlsx") 
-  
 
+reasons_for_descriptives
+  
 ```
+
+Descriptive stats on against text variables
+
+```{r}
+# summary stats on text data 
+against_descriptives <- describe(against_with_features)
+
+# save text descriptives 
+#write.xlsx(against_descriptives, "against_descriptives.xlsx") 
+
+against_descriptives
+  
+```
+
 
 
 # Text Pre-processing 
