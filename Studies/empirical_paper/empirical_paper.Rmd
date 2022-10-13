@@ -417,7 +417,7 @@ out <- prepDocuments(documents = processed$documents,
 
 # Topic Modeling
 
-## Model Diagnostics 
+## Model Diagnostics - Reasons For
 
 There are multiple evaluation strategies available. First, researchers can fit topic models across k topics and evaluate model fit and human interpretability based on various criteria developed by researchers. Below  to consider
 
@@ -426,6 +426,7 @@ the number of latent topics. Specifically, the
 
 ```{r}
 
+# run function to calculate diagnostic stats for different k-models 
 ntopics <- searchK(out$documents, out$vocab, K = c(2,3,4,5,6,7,8,9,10), 
                    data = meta)
 
@@ -433,14 +434,16 @@ ntopics <- searchK(out$documents, out$vocab, K = c(2,3,4,5,6,7,8,9,10),
 plot(ntopics) 
 
 # store diagnostic statistics in data set 
-diag_stat_reasons <- ntopics$results
+diag_stat_reasons <- ntopics$results 
+
+diag_stat_reasons <- diag_stat_reasons %>% rename(k_topics = K) 
 
 # visualize semantic coherence across models 
 diag_stat_reasons %>%
   tail(10) %>%
-  ggplot( aes(x=K, y=semcoh)) +
+  ggplot( aes(x=k_topics, y=semcoh)) +
     geom_line() +
-    geom_point() + ylab("Semantic Coherence") + xlab("K - Number of Topics") + theme_apa() 
+    geom_point() + ylab("Semantic Coherence") + xlab("k - Number of Topics")
 
 
 # visualize exclusivity x semantic coherence
@@ -449,6 +452,7 @@ diag_stat_reasons
 ```
 
 
+Fixed k, select model 
 
 ```{r}
 
@@ -464,6 +468,63 @@ selectedmodel <- stm_select_mod$runout[[1]]
 
 ```
 
+
+
+
+
+
+## Model Diagnostics - Reasons Against 
+
+```{r}
+
+# rename 'Reasons_Stated' column to 'document', which the topic model takes
+against_with_features <- against_with_features %>%
+  rename(document = Against_Stated) 
+
+# run data frame through basic pre-processing: remove punctuation, 
+# stop words, custom stop words, numbers, and stem.
+against_processed <- textProcessor(documents = against_with_features$document, 
+                           metadata = against_with_features)   
+
+# store processed objects to inspect pre-processing applied 
+against_docs <- against_processed$documents
+against_vocab <- against_processed$vocab
+against_meta <- against_processed
+
+
+# default threshold: 1
+against_out <- prepDocuments(against_processed$documents, against_processed$vocab)
+
+
+# set lower threshold of 5, requiring words to appear in at least 5 reasons stated in order to be included in the analysis
+
+against_out <- prepDocuments(documents = against_processed$documents,
+              vocab = against_processed$vocab,
+              meta = against_processed$meta, 
+              lower.thresh = 1) #this is default lower threshold  
+
+
+# run function to calculate diagnostic stats for different k-models 
+against_ntopics <- searchK(against_out$documents, 
+                           out$vocab, K = c(2,3,4,5,6,7,8,9,10), data = against_meta)
+
+# plot the topic diagnostic outputs 
+plot(against_ntopics) 
+
+# store diagnostic statistics in data set 
+against_diag <- against_ntopics$results 
+against_diag <- against_diag %>% rename(k_topics = K) 
+
+# semantic coherence for reasons against data 
+against_diag %>%
+  tail(10) %>%
+  ggplot( aes(x=k_topics, y=semcoh)) +
+    geom_line() +
+    geom_point() + ylab("Semantic Coherence") + xlab("k - Number of Topics") + 
+  theme_apa() 
+
+
+```
 
 
 
