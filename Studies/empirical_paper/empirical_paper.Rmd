@@ -26,6 +26,7 @@ library(wesanderson)
 library(readxl) # to import xlsx file 
 library(xlsx) # to write to xlsx file 
 library(psych) # useful for descriptive stats 
+library(jtools)  # has theme_apa() function for formatting ggplot objects in APA style 
 ```
 
 ## Data Cleaning 
@@ -431,6 +432,20 @@ ntopics <- searchK(out$documents, out$vocab, K = c(2,3,4,5,6,7,8,9,10),
 # plot the topic diagnostic outputs 
 plot(ntopics) 
 
+# store diagnostic statistics in data set 
+diag_stat_reasons <- ntopics$results
+
+# visualize semantic coherence across models 
+diag_stat_reasons %>%
+  tail(10) %>%
+  ggplot( aes(x=K, y=semcoh)) +
+    geom_line() +
+    geom_point() + ylab("Semantic Coherence") + xlab("K - Number of Topics") + theme_apa() 
+
+
+# visualize exclusivity x semantic coherence
+
+diag_stat_reasons
 ```
 
 
