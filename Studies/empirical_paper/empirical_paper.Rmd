@@ -680,7 +680,7 @@ against_k4_sem_exclusivity %>%
 
 # select Model 1, which is seen as being the most optimized on exclusivity and coherence 
 # numbers represent the average for each model and dots represent individual scores 
-against_reasons_for_k4 <- stm_select_mod$runout[[4]]
+against_reasons_for_k4 <- against_stm_select_mod$runout[[4]]
 
 ```
 
@@ -688,22 +688,114 @@ against_reasons_for_k4 <- stm_select_mod$runout[[4]]
 
 ```{r}
 
-against_beta <- tidy(against_reasons_for_k4)
+# reasons against k = 4 topic model 
+against_reasons_for_k4
 
- against_beta %>%
-  group_by(topic) %>%
-  top_n(10, beta) %>%
-  ungroup() %>% 
-   mutate(topic = paste0("Topic ", topic), 
-          term = reorder_within(term, beta, topic)) 
+against_tidy <- tidy(against_reasons_for_k4) 
+
+word_probs_against <- function(against_tidy) { 
   
+  against_tidy %>%
+  # Group by topic
+  group_by(topic) %>%
+  # Take the top 10 based on beta
+  top_n(10, beta) %>%
+  # Ungroup
+  ungroup() %>%
+  # Generate the variables topic and term
+  dplyr::mutate(topic = paste0(topic),
+                term = reorder_within(term, beta, topic)) %>%
+  # And plot it
+  ggplot() +
+  # Using a bar plot with the terms on the x-axis, the beta on the y-axis, filled by topic
+  geom_col(aes(x = term, y = beta, fill = as.factor(topic)),
+           alpha = 0.8,
+           show.legend = FALSE) +
+  # Do a facet_wrap by topic
+  facet_wrap(~ topic, scales = "free_y") +
+  # And flip the plot
+  coord_flip() +
+  scale_x_reordered() +
+  # Label the x-axis, y-axis, as well as title
+  labs(x = "Word",
+    y = expression(beta),
+    title = "Highest word probabilities for each topic") +
+  # And finally define the colors
+  scale_fill_manual(values = wes_palette("Darjeeling1"))
+  
+  
+}
+
+# generate bar chart for 4 topic solution
+word_probs_against(against_tidy) 
+
  
- dplyr::mutate(topic = paste0("Topic ", topic),
-                term = reorder_within(term, beta, topic))
+```
+
+
+
+# Assign Topics to Study Data 
+
+STM to data table format. The steps below export topic proportions from the topic model and assign them to the original data as proportions that can subsequently used to model their relationship to other variables in the data set. 
+
+```{r}
+
+reasons_for_k3
+
+# generate data table; using meta we can rejoin to the original data set 
+reasons_for_topic_props <- make.dt(reasons_for_k3, meta = out$meta)
+reasons_for_topic_props
+# write to excel 
+write.xlsx(reasons_for_topic_props, "all_variables_reasons_for.xlsx") 
+
+# create a data table for the reasons against data that can then be joined to the above set 
+
+against_topic_props <- make.dt(against_reasons_for_k4, against_out$meta)  
+
+against_topic_props
+
+against_topic_props <- against_topic_props %>% 
+  rename(Against_1 = Topic1, Against_2 = Topic2, Against_3 = Topic3, 
+         Against_4 = Topic4, reason_against = document) %>% 
+  select(reason_against, Against_1:Against_4, participant_id) 
+
+
+
+# join the data sets using the participant id column 
+
+full_data <- reasons_for_topic_props %>% 
+  left_join(against_topic_props, by = "participant_id")
+
+# data cleaning 
+
+full_data <- full_data %>% 
+  distinct(docnum, .keep_all = TRUE) 
+
+
+library(xlsx)
+#write.xlsx(full_data, "all_variables_empirical_study.xlsx") 
+
+
 
 
 ```
 
+
+
+# Correlation Matrices 
+## Reasons For 
+
+```{r}
+
+reasons_cor_data <- reasons_for_topic_props %>% 
+  select(Topic1, Topic2, Topic3, behavior_ave, burnout, job_sat, 
+         n_words, n_uq_words, sent_vader, n_first_person, n_first_personp,
+         n_second_person, n_second_personp, n_third_person)
+
+
+reasons_cor_matrix <- cor(reasons_cor_data, use = "complete.obs") 
+#write.xlsx(reasons_cor_matrix, "reasons_for_correlation_matrix.xlsx") 
+```
 
 
 
