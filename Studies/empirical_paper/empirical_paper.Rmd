@@ -501,8 +501,7 @@ k3_sem_exclusivity
 
 # plot sem coherence and exclusivity for the generated k = 3 topic models 
 k3_sem_exclusivity %>% 
-  ggplot(aes(x = mean_sem_coh, y = mean_exclusivity, color = model_id, shape = model_id)) + geom_point(size = 4) + labs(x = "Semantic Coherence", y = "Exclusivity") +  scale_shape_manual(values=c(7, 3, 17, 18)) + theme_apa() 
-
+  ggplot(aes(x = mean_sem_coh, y = mean_exclusivity, color = model_id, shape = model_id)) + geom_point(size = 4) + labs(x = "Semantic Coherence", y = "Exclusivity") +  scale_shape_manual(values=c(7, 3, 17, 18)) 
 
 # select Model 1, which is seen as being the most optimized on exclusivity and coherence 
 # numbers represent the average for each model and dots represent individual scores 
@@ -576,25 +575,18 @@ against_diag %>%
 ## Reasons For 
 
 
-
-
-
 ```{r}
-
 # fit k = 3 topic model for reasons for data 
-
-
-
-
+reasons_for_k3
 
 # Turn the STM object into a data frame. This is necessary so that we can work with it.
-td_beta <- tidy(fit_two)
+reasonsk3_td_beta <- tidy(reasons_for_k3)
 
 # create re-useable function for subsequent topic model solutions 
 # bar chart uses wesanderson color palettes
-word_probs <- function(td_beta) { 
+word_probs_reasons_for <- function(reasonsk3_td_beta) { 
   
-  td_beta %>%
+  reasonsk3_td_beta %>%
   # Group by topic
   group_by(topic) %>%
   # Take the top 10 based on beta
@@ -616,20 +608,103 @@ word_probs <- function(td_beta) {
   coord_flip() +
   scale_x_reordered() +
   # Label the x-axis, y-axis, as well as title
-  labs(
+  labs(x = "Word",
     y = expression(beta),
     title = "Highest word probabilities for each topic") +
   # And finally define the colors
-  scale_fill_manual(values = wes_palette("Darjeeling1"))
+  scale_fill_manual(values = wes_palette("Darjeeling1")) + theme_apa() 
   
   
-  }
+}
 
-# generate bar chart for 2 topic solution
-word_probs(td_beta) 
+# generate bar chart for 3 topic solution
+word_probs(reasonsk3_td_beta) 
 
 
 ```
+
+
+
+
+## Select Model Reasons Against 
+
+
+
+```{r}
+
+against_stm_select_mod <- selectModel(against_out$documents, against_out$vocab, K = 4, max.em.its = 75, data = against_out$meta, runs = 20, seed = 10210)  
+
+# average semantic coherence score and exclusivity 
+# model numerals are shown. Top 4 models are plotted. Models in the top right are best (e.g. high exclusivity and coherence closer to zero)
+plotModels(against_stm_select_mod, pch = c(4,5,6,7),legend.position = "bottomright")
+
+
+# return raw values of top three models for semantic coherence and generate model avgs 
+against_stm_select_mod$semcoh
+against_select_k4 <- t(as.data.frame(against_stm_select_mod$semcoh, col.names = c("Mod1", "Mod2", "Mod3", "Mod4"))) 
+against_select_k4 <- as.data.frame(against_select_k4) 
+
+against_k4_semantic_coherence <- against_select_k4 %>% 
+  mutate(model_id = row_number()) %>%
+  rename(run1 = V1, run2 = V2, run3 = V3) %>% 
+  group_by(model_id) %>% 
+  mutate(mean_sem_coh = mean(c(run1, run2, run3)))  
+
+
+
+# return raw values of top three models for semantic coherence and generate model avgs 
+against_stm_select_mod$exclusivity
+against_k4_exclusivity <- t(as.data.frame(against_stm_select_mod$exclusivity, col.names = c("Mod1", "Mod2", "Mod3", "Mod4"))) 
+against_k4_exclusivity <- as.data.frame(against_k4_exclusivity) 
+
+against_k4_exclusivity <- against_k4_exclusivity %>% 
+  mutate(model_id = row_number()) %>%
+  rename(run1 = V1, run2 = V2, run3 = V3) %>% 
+  group_by(model_id) %>% 
+  mutate(mean_exclusivity = mean(c(run1, run2, run3)))  
+
+against_k4_exclusivity
+
+# merge data sets by model ID 
+
+against_k4_sem_exclusivity <- against_k4_semantic_coherence %>% 
+  left_join(against_k4_exclusivity, by = "model_id") %>%
+  select(model_id, mean_sem_coh, mean_exclusivity) %>% 
+  mutate(model_id = as.factor(model_id)) 
+
+against_k4_sem_exclusivity
+
+# plot sem coherence and exclusivity for the generated k = 3 topic models 
+against_k4_sem_exclusivity %>% 
+  ggplot(aes(x = mean_sem_coh, y = mean_exclusivity, color = model_id, shape = model_id)) + geom_point(size = 4) + labs(x = "Semantic Coherence", y = "Exclusivity") +  scale_shape_manual(values=c(7, 3, 17, 18)) + theme_apa() 
+
+# select Model 1, which is seen as being the most optimized on exclusivity and coherence 
+# numbers represent the average for each model and dots represent individual scores 
+against_reasons_for_k4 <- stm_select_mod$runout[[4]]
+
+```
+
+
+
+```{r}
+
+against_beta <- tidy(against_reasons_for_k4)
+
+ against_beta %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>% 
+   mutate(topic = paste0("Topic ", topic), 
+          term = reorder_within(term, beta, topic)) 
+  
+ 
+ dplyr::mutate(topic = paste0("Topic ", topic),
+                term = reorder_within(term, beta, topic))
+
+
+```
+
+
 
 
 
