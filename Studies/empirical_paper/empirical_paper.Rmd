@@ -375,6 +375,11 @@ meta <- processed
 
 ```
 
+
+# Topic Modeling
+
+
+
 ## Thresholds 
 
 By default, `prepDocuments` removes words that appear in only one document. Users
@@ -414,8 +419,6 @@ out <- prepDocuments(documents = processed$documents,
 
 ```
 
-
-# Topic Modeling
 
 ## Model Diagnostics - Reasons For
 
@@ -462,12 +465,51 @@ stm_select_mod <- selectModel(out$documents, out$vocab, K = 3, max.em.its = 75, 
 # model numerals are shown. Top 4 models are plotted. Models in the top right are best (e.g. high exclusivity and coherence closer to zero)
 plotModels(stm_select_mod, pch = c(4,5,6,7),legend.position = "bottomright")
 
+# return raw values of top three models for semantic coherence and generate model avgs 
+stm_select_mod$semcoh
+select_k3 <- t(as.data.frame(stm_select_mod$semcoh, col.names = c("Mod1", "Mod2", "Mod3", "Mod4"))) 
+select_k3 <- as.data.frame(select_k3) 
+
+k3_semantic_coherence <- select_k3 %>% 
+  mutate(model_id = row_number()) %>%
+  rename(run1 = V1, run2 = V2, run3 = V3) %>% 
+  group_by(model_id) %>% 
+  mutate(mean_sem_coh = mean(c(run1, run2, run3)))  
+
+
+# return raw values of top three models for semantic coherence and generate model avgs 
+stm_select_mod$exclusivity
+k3_exclusivity <- t(as.data.frame(stm_select_mod$exclusivity, col.names = c("Mod1", "Mod2", "Mod3", "Mod4"))) 
+k3_exclusivity <- as.data.frame(k3_exclusivity) 
+
+k3_exclusivity <- k3_exclusivity %>% 
+  mutate(model_id = row_number()) %>%
+  rename(run1 = V1, run2 = V2, run3 = V3) %>% 
+  group_by(model_id) %>% 
+  mutate(mean_exclusivity = mean(c(run1, run2, run3)))  
+
+k3_exclusivity
+
+# merge data sets by model ID 
+
+k3_sem_exclusivity <- k3_semantic_coherence %>% 
+  left_join(k3_exclusivity, by = "model_id") %>%
+  select(model_id, mean_sem_coh, mean_exclusivity) %>% 
+  mutate(model_id = as.factor(model_id)) 
+
+k3_sem_exclusivity
+
+# plot sem coherence and exclusivity for the generated k = 3 topic models 
+k3_sem_exclusivity %>% 
+  ggplot(aes(x = mean_sem_coh, y = mean_exclusivity, color = model_id, shape = model_id)) + geom_point(size = 4) + labs(x = "Semantic Coherence", y = "Exclusivity") +  scale_shape_manual(values=c(7, 3, 17, 18)) + theme_apa() 
+
+
 # select Model 1, which is seen as being the most optimized on exclusivity and coherence 
 # numbers represent the average for each model and dots represent individual scores 
-selectedmodel <- stm_select_mod$runout[[1]]
+reasons_for_k3 <- stm_select_mod$runout[[1]]
+
 
 ```
-
 
 
 
@@ -530,7 +572,69 @@ against_diag %>%
 
 
 
-# Topic Modeling
+# Top Terms 
+## Reasons For 
+
+
+
+
+
+```{r}
+
+# fit k = 3 topic model for reasons for data 
+
+
+
+
+
+# Turn the STM object into a data frame. This is necessary so that we can work with it.
+td_beta <- tidy(fit_two)
+
+# create re-useable function for subsequent topic model solutions 
+# bar chart uses wesanderson color palettes
+word_probs <- function(td_beta) { 
+  
+  td_beta %>%
+  # Group by topic
+  group_by(topic) %>%
+  # Take the top 10 based on beta
+  top_n(10, beta) %>%
+  # Ungroup
+  ungroup() %>%
+  # Generate the variables topic and term
+  dplyr::mutate(topic = paste0(topic),
+                term = reorder_within(term, beta, topic)) %>%
+  # And plot it
+  ggplot() +
+  # Using a bar plot with the terms on the x-axis, the beta on the y-axis, filled by topic
+  geom_col(aes(x = term, y = beta, fill = as.factor(topic)),
+           alpha = 0.8,
+           show.legend = FALSE) +
+  # Do a facet_wrap by topic
+  facet_wrap(~ topic, scales = "free_y") +
+  # And flip the plot
+  coord_flip() +
+  scale_x_reordered() +
+  # Label the x-axis, y-axis, as well as title
+  labs(
+    y = expression(beta),
+    title = "Highest word probabilities for each topic") +
+  # And finally define the colors
+  scale_fill_manual(values = wes_palette("Darjeeling1"))
+  
+  
+  }
+
+# generate bar chart for 2 topic solution
+word_probs(td_beta) 
+
+
+```
+
+
+
+
+
 
 
 ## Text Pre-processing 
