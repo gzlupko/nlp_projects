@@ -753,7 +753,7 @@ reasons_for_topic_props
 against_topic_props <- make.dt(against_reasons_for_k4, against_out$meta)  
 
 against_topic_props
-write.xlsx(against_topic_props, "reasons_against_all_variables.xlsx")
+#write.xlsx(against_topic_props, "reasons_against_all_variables.xlsx")
 
 
 ```
