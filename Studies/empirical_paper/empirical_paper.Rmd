@@ -546,8 +546,8 @@ against_out <- prepDocuments(documents = against_processed$documents,
 
 
 # run function to calculate diagnostic stats for different k-models 
-against_ntopics <- searchK(against_out$documents, 
-                           out$vocab, K = c(2,3,4,5,6,7,8,9,10), data = against_meta)
+against_ntopics <- searchK(against_out$documents, out$vocab, 
+                           K = c(2,3,4,5,6,7,8,9,10), data = against_meta)
 
 # plot the topic diagnostic outputs 
 plot(against_ntopics) 
@@ -618,7 +618,7 @@ word_probs_reasons_for <- function(reasonsk3_td_beta) {
 }
 
 # generate bar chart for 3 topic solution
-word_probs(reasonsk3_td_beta) 
+word_probs_reasons_for(reasonsk3_td_beta) 
 
 
 ```
@@ -779,26 +779,81 @@ reasons_cor_matrix <- cor(reasons_cor_data, use = "complete.obs")
 
 
 
+# Regression Analyses 
+
+### Reasons For
+
+```{r}
+
+reasons_for_topic_props
+# scale select columns in df 
+reasons_for_scaled <- reasons_for_topic_props %>% 
+   mutate_at(c(2:4, 8:10, 12:25), funs(c(scale(.))))
+
+# hierarchical MR 
+# mod1 = job sat and burnout 
+mod1 <- lm(behavior_ave ~ burnout + job_sat, data = reasons_for_scaled)
+mod1 %>% summary() 
+
+# mod2 = text features added 
+
+mod2 <- lm(behavior_ave ~ burnout + job_sat + sent_vader + n_words + n_first_person + n_first_personp + n_second_personp  + n_third_person, data = reasons_for_scaled)
+mod2 %>% summary() 
+
+
+# added text features did account for sig more variance in behavior at T2, though additional # variance accounted for was small 
+
+anova(mod1, mod2) 
+
+
+```
+
+
+### Reasons Against 
+#### Regression Testing 
+
+```{r}
+
+against_topic_props
+
+# scale select columns in data needed for regression
+against_mlr_data <- against_topic_props %>% 
+  select(Topic1:Topic4, behavior_ave:job_sat, n_chars:n_third_person)
+
+against_scaled <- data.frame(scale(against_mlr_data)) 
+
+ 
+# regression 1; already created earlier 
+mod1
+
+# model2: topics against + text features 
+
+mod2 <- lm(behavior_ave ~ job_sat + burnout + Topic1 + Topic2 + Topic3 + sent_vader + n_words + n_first_person + n_first_personp + n_second_personp + n_third_person, data = against_scaled)
+summary(mod2) 
+               
+```
+
+
+
+
+# Multi-level 
 # Test for multilevel 
 ## Reasons for data
 
 
 ```{r, message = FALSE}
-reasons_for_topic_props
-library(lme4) 
-
-mlm_data <- reasons_for_topic_props %>% 
-  mutate(behavior_centered = scale(behavior_ave), 
-        person = as.factor(participant_id))  
+reasons_mlm_data <- reasons_for_topic_props %>% 
+  select(Topic1, Topic2, Topic3, behavior_ave, sent_vader)
+participants <- reasons_for_topic_props %>% select(participant_id) 
 
 
-# scale variables 
+reasons_mlm_data <- as.data.frame(scale(reasons_mlm_data)) 
+reasons_mlm_data <- cbind(reasons_mlm_data, participants) 
+reasons_mlm_data <- data.frame(reasons_mlm_data)
 
-#unconditional means model
-model0_fit <- lmer(formula = behavior_centered ~ 1 + (1|person), 
-              data= mlm_data,
-              na.action=na.exclude)
-summary(model0_fit)
+# mlm test 
+lmer(data = reasons_mlm_data, behavior_ave ~ Topic1 + Topic2 +sent_vader + (1 | participant_id)) %>% summary() 
+
 ```
 
 
