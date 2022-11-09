@@ -6,9 +6,6 @@ library(tidyverse)
 
 
 
-
-
-
 # store bearer in .Renviron as needed
 #set_bearer() 
 #get_bearer()
@@ -37,8 +34,8 @@ search_terms <- build_query(query = terms,
 
 wfh_df <- get_all_tweets(
   query = search_terms,
-  "2020-08-01T00:00:00Z",
   "2020-08-02T00:00:00Z",
+  "2020-08-03T00:00:00Z",
   n = 500)
 
 
@@ -57,13 +54,14 @@ wfh_metrics <- wfh_sub %>%
   unnest(public_metrics)
 
 
-
+# clean the mined tweets data to the columns that I want 
 df_export <- wfh_metrics %>%
   select(author_id, text, id, source, created_at, retweet_count, 
          reply_count, like_count, quote_count) 
 
-
-write.table(df_export, "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Twitter_Study/wfh_twitter_data.csv", 
+# following write.table() code tells R to attach the newly mined df_export data frame to a data set 
+# that I have in the path that is specified. This effectively adds the new set of tweets to the data set. 
+write.table(df_export, "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/Twitter_study/wfh_twitter_data.csv", 
             append = T, row.names = T, col.names = T, sep = ",") 
 
 
