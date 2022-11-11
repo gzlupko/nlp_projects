@@ -274,6 +274,7 @@ reasons_with_features
 # save a copy of this data set to local 
 #write.xlsx(reasons_with_features, "reasons_for_with_features.xlsx")
 
+reasons_with_features 
 
 ```
 
@@ -775,6 +776,41 @@ reasons_cor_matrix <- cor(reasons_cor_data, use = "complete.obs")
 #write.xlsx(reasons_cor_matrix, "reasons_for_correlation_matrix.xlsx") 
 ```
 
+
+# Load cleaned and processed data here 
+Load data that was already processed and in which topic proportions and other text features were already applied; its stored in local 
+
+```{r}
+getwd() 
+
+reasons_for_data <- read_excel("all_variables_reasons_for.xlsx") 
+
+# log transform the topic proportions per Doldor et al. (2017)
+reasons_for_data[,3:5] <- log(reasons_for_data[,3:5]) 
+reasons_for_data
+
+```
+
+Regression with log transformed 
+
+Results showed no difference with the log transformed data vs. the scale transformation used below. 
+
+```{r}
+
+# hierarchical MR 
+# mod1 = job sat and burnout 
+mod1 <- lm(burnout ~ job_sat, data = reasons_for_data)
+mod1 %>% summary() 
+
+# mod2 = topic proportions 
+
+mod2_topics <- lm(burnout ~ job_sat + Topic1 + Topic2 + Topic3 + sent_vader, data = reasons_for_data)
+summary(mod2_topics) 
+
+anova(mod1, mod2_topics) 
+
+
+```
 
 
 
