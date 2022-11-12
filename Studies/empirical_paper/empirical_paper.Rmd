@@ -780,6 +780,7 @@ reasons_cor_matrix <- cor(reasons_cor_data, use = "complete.obs")
 # Load cleaned and processed data here 
 Load data that was already processed and in which topic proportions and other text features were already applied; its stored in local 
 
+
 ```{r}
 getwd() 
 
@@ -790,6 +791,66 @@ reasons_for_data[,3:5] <- log(reasons_for_data[,3:5])
 reasons_for_data
 
 ```
+
+
+
+# Exemplar responses
+
+```{r}
+reasons_for_data <- read_excel("all_variables_reasons_for.xlsx") 
+
+# build an exemplar df for each topic 
+# create and repeat for each topic in reasons for 
+reasons_for_topic1_examples <- reasons_for_data %>% 
+  arrange(desc(Topic1)) %>%
+  filter(Topic1 > .54) %>% select(Topic1:Topic3, document) 
+
+#write.xlsx(reasons_for_topic1_examples, "reasons_for_topic1_examples.xlsx")
+
+reasons_for_topic2_examples <- reasons_for_data %>% 
+  arrange(desc(Topic2)) %>% 
+  filter(Topic2 > .41) %>% select(Topic1:Topic3, document) 
+#write.xlsx(reasons_for_topic2_examples, "reasons_for_topic2_examples.xlsx")
+
+
+reasons_for_topic3_examples <- reasons_for_data %>% 
+  arrange(desc(Topic3)) %>% 
+  filter(Topic3 > .54) %>% select(Topic1:Topic3, document)
+#write.xlsx(reasons_for_topic3_examples, "reasons_for_topic3_examples.xlsx")
+```
+
+
+# Reasons against exemplar responses 
+
+```{r}
+reasons_against_full <- read_excel("reasons_against_all_variables.xlsx") 
+
+# filter by greatest proportion for each topic. Store to file for formatting in Excel 
+
+against_topic1_responses <- reasons_against_full %>% 
+  arrange(desc(Topic1)) %>% select(Topic1:Topic4, document) %>% 
+  filter(Topic1 > .500) 
+#write.xlsx(against_topic1_responses, "against_topic1_responses.xlsx")
+
+
+against_topic2_responses <- reasons_against_full %>% 
+  arrange(desc(Topic2)) %>% select(Topic1:Topic4, document) %>%
+  filter(Topic2 > .49)
+#write.xlsx(against_topic2_responses, "against_topic2_responses.xlsx")
+
+against_topic3_responses <- reasons_against_full %>% 
+  arrange(desc(Topic3)) %>%
+  filter(Topic3 > .35) %>% select(Topic1:Topic4, document)
+#write.xlsx(against_topic3_responses, "against_topic3_responses.xlsx") 
+
+against_topic4_responses <- reasons_against_full %>% 
+  arrange(desc(Topic4)) %>% 
+  filter(Topic4 > .34) %>% select(Topic1:Topic4, document)
+#write.xlsx(against_topic4_responses, "against_topic4_responses.xlsx") 
+```
+
+
+
 
 Regression with log transformed 
 
