@@ -871,6 +871,11 @@ summary(mod2_topics)
 
 anova(mod1, mod2_topics) 
 
+# descriptives reasons for data 
+reasons_for_data %>% 
+  ggplot(aes(x = behavior_ave)) + geom_histogram(stat = "bin", binwidth = 1)   
+
+describe(reasons_for_data$behavior_ave) 
 
 ```
 
@@ -890,13 +895,13 @@ reasons_for_scaled <- reasons_for_topic_props %>%
 
 # hierarchical MR 
 # mod1 = job sat and burnout 
-mod1 <- lm(behavior_ave ~ burnout + job_sat, data = reasons_for_scaled)
+mod1 <- lm(behavior_ave ~ burnout + job_sat, data = reasons_for_data)
 mod1 %>% summary() 
 
 # mod2 = text features added 
 
-mod2_reasons_for <- lm(behavior_ave ~ burnout + job_sat + sent_vader + n_words + n_first_person + n_first_personp + n_second_personp  + n_third_person, data = reasons_for_scaled)
-mod2 %>% summary() 
+mod2_reasons_for <- lm(behavior_ave ~ burnout + job_sat + sent_vader + n_words + n_first_person + n_first_personp + n_second_personp  + n_third_person, data = reasons_for_data)
+mod2_reasons_for %>% summary() 
 
 
 # added text features did account for sig more variance in behavior at T2, though additional # variance accounted for was small 
@@ -912,6 +917,8 @@ reasons_for_reg_table <- apa.reg.table(mod2_reasons_for, filename = "reasons_for
 
 
 ### Reasons Against 
+
+
 #### Regression Testing 
 
 ```{r}
