@@ -117,8 +117,9 @@ reasons_formatted <- merge(x = reasons_long,
 reasons_formatted 
 
 # finally remove rows with NA values 
-reasons_long <- reasons_formatted %>%
-  filter(!is.na(Reason_Stated)) 
+# update: dec 2022: retain NA in text data to overcome potential range restriction
+#reasons_long <- reasons_formatted %>%
+  #filter(!is.na(Reason_Stated)) 
 
 # add row_id, which will be used after creating topic model
 # to re-assign the topic model output back to the unique row id 
@@ -127,6 +128,13 @@ reasons_long$row_id <- paste(1:nrow(reasons_long))
 
 # write transformed data set to local to store a copy
 #write.xlsx(reasons_long, "reasons_long_formatted.xlsx") 
+
+# also export a data set with the participants that did not provide reasons
+# but did provide responses to the other study variables (this is to mitigate range restriction)
+
+no_reason_provided <- reasons_formatted %>%
+  subset(is.na(Reason_Stated)) 
+#write.xlsx(no_reason_provided, "no_reason_provided.xlsx")
 
 ```
 
@@ -156,8 +164,9 @@ against_formatted <- merge(x = against_long,
 # 
 
 # finally remove rows with NA values 
-against_long <- against_formatted %>%
-  filter(!is.na(Against_Stated)) 
+# update: dec 2022: retain NA in text data to overcome potential range restriction
+#against_long <- against_formatted %>%
+  #filter(!is.na(Against_Stated)) 
 
 # add row_id, which will be used after creating topic model
 # to re-assign the topic model output back to the unique row id 
@@ -350,6 +359,14 @@ against_descriptives
   
 ```
 
+The next set of pre-processing steps will remove rows without a stated reason. However, due to potential range restriction in the relationship between stated reasons and T2 behavior, 
+
+```{r}
+no_reason_for_provided <- reasons_with_features %>%
+  subset(is.na(document))
+
+```
+
 
 
 # Text Pre-processing 
@@ -417,7 +434,6 @@ out <- prepDocuments(documents = processed$documents,
               vocab = processed$vocab,
               meta = processed$meta, 
               lower.thresh = 3) 
-
 
 ```
 
@@ -883,6 +899,58 @@ describe(reasons_for_data$behavior_ave)
 
 
 # Regression Analyses 
+
+
+# Range restriction
+
+Update, December 2022: those that did not provide reasons but that had T2 behavior were originally removed from the data set for follow-up correlations and regressions. This may have seriously range restricted the relationships between the topics and the study variables. 
+
+so far data with missing reasons was attached manually in excel to data that has been processed and assigned the topic proportions. 
+
+
+```{r}
+
+reasons_for_data
+
+# format data with missing columns so that it attaches with cbind() to the processed reasons data 
+# extract study variables to manually combine two data sets
+#write.xlsx(no_reason_for_provided, "no_reason_provided.xlsx")
+
+
+
+reasons_full_with_missing <- read_excel("reasons_full_with_missing.xlsx")
+
+head(reasons_full_with_missing)
+
+```
+
+
+
+
+```{r}
+
+lm(behavior_ave ~ job_sat + burnout, data = reasons_full_with_missing) %>%
+  summary()
+
+# compare to data with no missing values retained 
+
+lm(behavior_ave ~ job_sat + burnout, data = reasons_for_data) %>%
+  summary()
+
+lm(behavior_ave ~ job_sat + burnout, data = reasons_full_with_missing) %>% 
+  summary() 
+
+
+# where hold out group is
+lm(behavior_ave ~ Topic1 + Topic2, data = reasons_for_data) %>% summary()
+lm(behavior_ave ~ Topic1 + Topic2, data = reasons_full_with_missing) %>% summary() 
+
+
+
+```
+
+
+
 
 ### Reasons For
 
