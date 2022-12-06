@@ -13,6 +13,45 @@ This repository contains Natural Language Processing (NLP) and text mining techi
 
 ## Pre-Processing
 
+
+Convert all text to lowercase using the `tolow()` function: 
+
+```
+sample_reviews %>%
+  mutate(text = tolower(text))
+
+```
+
+Tokenize text into individual words using the unnest_tokens() function: 
+
+```
+sample_reviews %>%
+  unnest_tokens(word, text)
+```
+
+Remove stop words using the anti_join() function and the stop_words data provided by the tidytext package: 
+
+```
+sample_reviews %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+```
+
+Remove punctuation and special characters using regular expressions and the gsub() function: 
+
+```
+sample_reviews %>%
+  mutate(text = gsub("[^[:alpha:]]", " ", text))
+
+```
+Remove numbers or other non-text elements using regular expressions and the gsub() function: 
+
+```
+sample_reviews %>%
+  mutate(text = gsub("[0-9]", "", text))
+```
+
+
 Create a document term matrix (DTM) using a tidytext approach in R. 
 
 ```
