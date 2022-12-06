@@ -95,7 +95,7 @@ CTM9 <- CTM(sample_dtm, k = 9, control = control_CTM_VEM1,
 
 
 
-##### LDA Density Plots 
+#### LDA Density Plots 
 
 Below is an LDA density plot for the decisions that participants listed. The density plot provides one indication for the ideal number of topics in the text data. The density plot shows the probabilities of overlap of terms in topics for a particular solution. The lower the density (of overlap), the better the solution as low term overlap will help the researcher subjectively differentiate the topics and provide definitions for the topics based on their unique terms. 
 
@@ -127,6 +127,12 @@ FindTopicsNumber_plot(result.gibbs)
 &nbsp;
 
 
+
+#### Topic Model Visualization 
+
+Top terms by topic
+
+![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/sample_nlp/viz/movie_reviews_top_terms.png)
 
 
 
