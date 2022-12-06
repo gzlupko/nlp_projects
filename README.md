@@ -4,13 +4,91 @@ This repository contains Natural Language Processing (NLP) and text mining techi
 
 
 ## Table of Contents 
-* [Sample Methods](#Sample-Methods)
+* [Pre-Processing](#Pre-Processing)
+* [Topic Models](#Topic-Models)
+* [Sentiment Analysis](#Sentiment-Analysis)
 
 
 
-### Sample Methods
 
-##### Structural Topic Models 
+## Pre-Processing
+
+
+Convert all text to lowercase using the `tolow()` function: 
+
+```
+sample_reviews %>%
+  mutate(text = tolower(text))
+
+```
+
+Tokenize text into individual words using the unnest_tokens() function: 
+
+```
+sample_reviews %>%
+  unnest_tokens(word, text)
+```
+
+Remove stop words using the anti_join() function and the stop_words data provided by the tidytext package: 
+
+```
+sample_reviews %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+```
+
+Remove punctuation and special characters using regular expressions and the gsub() function: 
+
+```
+sample_reviews %>%
+  mutate(text = gsub("[^[:alpha:]]", " ", text))
+
+```
+Remove numbers or other non-text elements using regular expressions and the gsub() function: 
+
+```
+sample_reviews %>%
+  mutate(text = gsub("[0-9]", "", text))
+```
+
+
+Create a document term matrix (DTM) using a tidytext approach in R. 
+
+```
+library(tidytext) 
+
+# create document-term matrix 
+sample_dtm <-sample_reviews %>%
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words) %>%  # removes stop word list in tidytext package
+  count(doc_id, word, sort = T) %>%
+  cast_dtm(document = doc_id, term = word, n) 
+
+```
+
+
+
+## Topic Models
+
+
+
+#### Latent Dirichlet Allocation (LDA) 
+
+```
+lda_mod <- LDA(sample_dtm, 
+    k = 9, 
+    method = "VEM")
+
+```
+#### Correlated Topic Model (CTM)
+
+```
+# below we generate a 9-topic CTM 
+
+CTM9 <- CTM(sample_dtm, k = 9, control = control_CTM_VEM1, 
+            seed = 12244) # set seed for reproducibility 
+```
+
 
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/Studies/CDC_2021/vizualizations/search_k_diagnostic_values.jpeg)
@@ -95,7 +173,7 @@ The below table shows the most commonly occuring words that succeed target words
 &nbsp;
 
 
-###### Sentiment Analysis 
+##### Sentiment Analysis 
 
 Below are word counts and associated sentiments for sample airline review Twitter data. 
 
