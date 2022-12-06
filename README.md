@@ -31,14 +31,25 @@ sample_dtm <-sample_reviews %>%
 
 ## Topic Models
 
+
+
+#### Latent Dirichlet Allocation (LDA) 
+
+```
+lda_mod <- LDA(sample_dtm, 
+    k = 9, 
+    method = "VEM")
+
+```
 #### Correlated Topic Model (CTM)
 
+```
+# below we generate a 9-topic CTM 
 
+CTM9 <- CTM(sample_dtm, k = 9, control = control_CTM_VEM1, 
+            seed = 12244) # set seed for reproducibility 
 ```
 
-
-
-```
 
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/Studies/CDC_2021/vizualizations/search_k_diagnostic_values.jpeg)
