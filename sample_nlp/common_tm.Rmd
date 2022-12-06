@@ -1,0 +1,567 @@
+---
+title: "Common Text Mining Techniques"
+author: "Gian Zlupko"
+date: "2022-12-305"
+output: html_document
+---
+
+
+
+# Part I: Recreate CTM Markdown Analysis 
+
+The text data used in this assignment are positive movie reviews posted on International Movie Data Base (IMDB)'s online movie review platform. Data was accessed at the following URL: https://ai.stanford.edu/~amaas/data/sentiment/
+
+
+To get started, first we called the libraries used throughout this exercise and then we read in text data.
+
+#### Libraries used through exercise 
+```{r, message = FALSE}
+library(topicmodels)
+library(tm)
+library(tidyverse)
+library(tidytext) 
+library(tidyr)
+library(slam)
+library(ggrepel) 
+library(MASS)
+library(textstem)
+library(readtext)
+```
+
+Import Data
+
+```{r}
+# Read .txt files directly from a folder
+# Set a directory first
+data_dir <- "/Users/gianzlupko/Desktop/ORLA 6541 Data Science/ORLA_6541_Applied_Data_Science/imdb_pos_reviews"
+
+# Read in .txt data using
+# We need the encoding line to scrub weird non-standard characters out of the text data
+data_big <- readtext(paste0(data_dir, "/*.txt"), encoding = "UTF-8")
+# check dimensions 
+dim(data_big)
+```
+
+
+Next, we collect a sample 100 rows from the full data set of positive reviews. 
+
+```{r}
+# collect a random sample and look at a data preview 
+sample_reviews <- sample_n(data_big, 100) 
+head(sample_reviews) 
+
+
+# export the subset of the larget data set to local and share with team members 
+library(xlsx) 
+#write.csv(sample_reviews, "subset_imdbd_pos_reviews.csv") 
+#write.xlsx(sample_reviews, "subset_imdbd_pos_reviews.xlsx") 
+```
+
+
+#### Document-term matrix (DTM)
+
+After loading in the data, we need to create a special data structure that topic models use to perform their clustering-like, and dimensionality reduction-like, methods of the data. Specifically, topic models need a DTM. DTMs are matrices that contain word frequency counts for documents for all words in the corpus' overall vocabulary. 
+
+To create one, the `Corpus()` function is used from the `tm` package. 
+
+```{r}
+# corpus
+corpus <- Corpus(VectorSource(sample_reviews$text))
+corpus
+
+# build DTM 
+text_DTM <- DocumentTermMatrix(corpus,control = list(stemming=TRUE, stopwords = TRUE, minWordLength = 3, removeNumbers = TRUE, removePunctuation = TRUE))
+
+# view characteristics of the DTM created 
+text_DTM
+
+# dimensions 
+dim(text_DTM)
+
+```
+
+The dimensions of the DTM [100,3741] show that there are the 100 rows that were randomly selected and 3,741 columns. Those columns are the terms (e.g. words). 
+
+Next we use term frequency-inverse document frequent (TF-IDF) to 
+
+This measure allows to omit terms which have low frequency as well as those occurring in many documents (Hornik & Grun, 2011) 
+```{r}
+term_tfidf <- tapply(text_DTM$v / row_sums(text_DTM)[text_DTM$i], text_DTM$j, mean) * log2(nDocs(text_DTM)/col_sums(text_DTM > 0))
+summary(term_tfidf)
+```
+
+Plot TF-IDF 
+
+```{r}
+plot(density(term_tfidf))
+```
+
+
+ggplot2 version of the same plot above: 
+
+```{r}
+# uses data from above, creates a df, and pipes directly into ggplot2 
+data.frame(term_tfidf) %>% 
+  mutate(doc_id = seq(length(term_tfidf))) %>% 
+  rename(tf_idf = term_tfidf) %>% 
+  ggplot(aes(x = tf_idf)) + geom_density(fill="#69b3a2", color="#e9ecef", alpha=0.8) + ylab("Density") + xlab("TF-IDF")
+  
+
+```
+
+
+A good rule of thumb is to use the median for alpha. Here it’s around 0.04
+
+Note that we’ve cut down the total number of terms by setting alpha so that we don’t have too many common terms nor unique terms (trimming both sides of the distribution a little)
+
+Use median tf-idf to select terms to retain for topic modeling. Per the output above, the median was 0.04. 
+```{r}
+# use median
+alpha <- 0.04
+text_DTM_trimmed <- text_DTM[row_sums(text_DTM) > 0, term_tfidf >= alpha]
+dim(text_DTM_trimmed)
+```
+
+
+
+#### 10-fold cross validation 
+
+We set up the 10 fold cross validation, selecting 10% of the data for each of the 10 folds. 
+
+```{r}
+# Cross validation
+
+control_CTM_VEM <- list(
+  estimate.beta = TRUE, verbose = 0, prefix = tempfile(), save = 0, keep = 0,
+  seed = as.integer(Sys.time()), nstart=1L, best = TRUE,
+  var = list(iter.max=100, tol=10^-6),
+  em = list(iter.max=500, tol=10^-4),
+  cg = list(iter.max=100, tol=10^5)
+)
+
+# use 10-fold CV to determine k!
+# randomly divide the data into 10 folds.
+
+set.seed(100)
+topics <- c(2, 3, 4, 5, 6, 7, 8, 9, 10, 15) ##set k equals to 2 3 4 5 6 7 8 9 10 15.
+seed <- 2
+D <- length(sample_reviews$text) 
+folding <- sample(rep(seq_len(10), ceiling(D))[seq_len(D)])
+table(folding)
+```
+
+We train and test using the 10-fold cross validation that we just set up. Then plot by perlexity to see where the elbow is to select the correct number of topics k. This step can take a little while to run. The code in the for loop below is generating a correlated topic model (CTM) for the vector of k values that we created above (see the object, 'topics'). Then, for each CTM that was created, the for loop is extracting the perplexity statistic from the models. Later, we will plot the perplexity to see which value of k is optimal given the data. In generally, generating topic models requires run time as they use iterative resampling methods to fit whichever k-topic solution is requested to the data. Thus, the code chunk below will take time to run as it is generating 10 total CTMs. 
+
+
+```{r}
+## write a loop to automatically output the perplexity
+perp_by_col <- vector()
+for (k in topics) {
+  perp_by_row <- vector()
+  for (chain in seq_len(10)) {
+    training <- CTM(text_DTM_trimmed[folding != chain,], k = k,
+                    control = control_CTM_VEM)
+    testing <- CTM(text_DTM_trimmed[folding == chain,], model = training,
+                   control = control_CTM_VEM)
+    perp_by_row <- rbind(perp_by_row, perplexity(testing))
+  }
+  perp_by_col <- cbind(perp_by_col, perp_by_row)
+}
+```
+
+
+Plot perplexity following 10-fold cross validation 
+
+Perplexity is a log likelihood measure of topic model performance. It indicates the extent to which the topic model was able to predict data that was left out. Another way to understand left-out likelihood is a measure of how well the topic model reproduces the characteristics of data that was left out. 
+
+Plot the perplexity for each of the 10 folds, and then in the following code chunk, plot the average perplexity: 
+
+```{r}
+# Plot perplexity
+transpose <- t(perp_by_col)
+matplot(transpose, type = "l", col = rainbow(9), lty = 2, lwd = 2, ylab = "Perplexity", xlab = "K", main = "CTM-10-fold cross validation", xaxt="n")
+axis(1, at=1:10, labels = c("k=2", "k=3", "k=4", "k=5", "k=6", "k=7", "k=8", "k=9", "k=10", "k=15"), cex=0.5)
+
+perp_by_col_mean <- colMeans(perp_by_col)
+
+lines(perp_by_col_mean, col = "black", lwd = 4, lty = 1)
+led <- c("fold=2", "fold=3", "fold=4", "fold=5", "fold=6", "fold=7", "fold=8", "fold=9", "fold=10", "Average")
+legend("topright", led, lwd = 2, lty = 2, col = c(rainbow(9), 'black'), cex = 0.65)
+
+abline(v = 4, col = "gray60", lty = 2)
+```
+
+
+Plot average perplexity 
+
+```{r}
+# Average Perplexity
+{plot(perp_by_col_mean, pch = 20, ylab = 'Perplexity', xlab = "K", main = "CTM-10-fold cross validation", 
+      xaxt = "n") 
+  axis(1, at = 1:10, labels = c("k=2","k=3","k=4","k=5","k=6","k=7","k=8","k=9","k=10","k=15"), cex = 0.5)
+  lines(perp_by_col_mean, lwd = 1, lty = 2, col = "red")}
+```
+
+
+The perplexity plots indicate that perplexity is best for k = 9 topics. Thus, for the remainder of this exercise, we have retained the CTM with k = 9 topics. 
+
+#### CTM Model Selection 
+
+```{r}
+control_CTM_VEM1 <- list(
+  estimate.beta = TRUE, verbose=0, prefix=tempfile(),save=0,keep=0,
+  seed=1421313709,nstart=1L,best=TRUE,
+  var=list(iter.max=500,tol=10^-6),
+  em=list(iter.max=1000,tol=10^-4),
+  cg=list(iter.max=500,tol=10^5)
+)
+control_CTM_VEM
+
+# below we generate a 9-topic CTM 
+
+CTM9 <- CTM(text_DTM_trimmed, k = 9, control = control_CTM_VEM1, 
+            seed = 12244) # set seed for reproducibility 
+CTM9
+```
+
+
+#### CTM Output 
+
+Now we can see the probabilities for each document across the topic
+
+```{r}
+## A CTM_VEM topic model with 9 topics.
+
+## Topics
+topics9 <- posterior(CTM9)$topics
+## Let's look at the probability of each document info fits into each of the topics
+topics3 <- as.data.frame(topics9)
+rownames(topics9) <- sample_reviews$name
+#print(topics9)
+
+```
+
+
+```{r}
+## Let's look at which topic each document is assigned to one of the topics.
+main_topic9 <- as.data.frame(topics(CTM9))
+rownames(main_topic9) <- sample_reviews$doc_id
+colnames(main_topic9) <- "Main_Topic"
+print(main_topic9)
+```
+
+#### Top terms by topic 
+
+We can list the top terms for each topic. Here we ask for 10 terms. These terms are how we “tell the story” and name the topic.
+
+```{r}
+# Using this: https://www.tidytextmining.com/topicmodeling.html
+# Use tidyverse to look at the CTM results a bit more more
+
+tidy_topics <- tidy(CTM9, matrix = "beta")
+tidy_topics
+
+# create a top terms df; filtering by top 10 terms per topic 
+top_terms <- tidy_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+top_terms
+
+```
+
+
+
+Visualize the top 10 terms for each topic. 
+
+```{r}
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+
+```
+
+
+#### Multidimensional scaling (MDS)
+
+MDS can be used to operationalize 'distance' between topics. This step is one way to provide an data-driven indication as to how similar any two topics may be to one another. 
+
+
+```{r}
+# Classical MDS
+# N rows (objects) x p columns (variables)
+# each row identified by a unique row name
+
+d <- dist(topics9) # euclidean distances between the rows
+
+fit <- isoMDS(d, k=2) # k is the number of dim
+
+# If there are identical rows. Run the below only if there are identical rows
+
+#library(vegan)
+#fit <- vegan::metaMDS(comm = dist(topics))
+
+fit # view results
+```
+
+
+```{r}
+# plot solution 
+# add the main topic as column 3
+
+plot_data <- as.data.frame(cbind(fit$points[,1], fit$points[,2], main_topic9$Main_Topic), 
+                                 row.names = sample_reviews$doc_id)
+colnames(plot_data) <- c("Coordinate1", "Coordinate2", "Main_Topic")
+
+
+(p1 <- ggplot(data = plot_data, aes(x = Coordinate1, y = Coordinate2)) + geom_point(size=2, shape=23)) 
+```
+
+```{r}
+(p2 <- p1 + geom_point() + geom_text_repel(aes(label = row.names(plot_data)), size = 3, max.overlaps = 20)) 
+```
+
+
+
+
+```{r}
+# Need to use as.factor for Main_Topic for aes color so that there is a discrete color palette
+
+ggplot(data = plot_data) +
+    geom_point(mapping = aes(x = Coordinate1, y = Coordinate2, color = as.factor(Main_Topic))) + theme(legend.position = "none") 
+```
+
+
+
+
+```{r}
+(p5 <- ggplot(plot_data, aes(Coordinate1, Coordinate2, color = as.factor(Main_Topic)))+
+    geom_point()+geom_text_repel(aes(label = row.names(plot_data)), size = 3, max.overlaps = 30))
+```
+
+
+
+
+
+# Part II: Additional Data Visualizations 
+
+#### Instructions for Part II: 
+*After replicating the analysis in the example markdown in #1 above, please extend the analysis using additional code, visualizations, or inclusion of additional data from the IMDB movie review data set. Please include at least three additional extensions that you include at the end of the markdown for Exercise 5. Please include at least one of the following ideas as one of your three, the other two are up to you or feel free to stick to this list, it’s up to your team:* 
+
+*Display the full text of each of the top 3 highest probability documents for each identified topic (using code, not copy paste from the .txt).*
+
+* Extension options to choose from (select at least one)
+   * Display full text for top 3 highest probability documents for each topic 
+   * Develop a visualization from the Silge & Robinson (2017) tidytext reading
+   * Examine how sentiment relates to the topics 
+   * Using the data and links to the movies that the movie reviews in the IMDB 
+   * Other text mining examples from google scholar or elsewhere using the IMDB ddta set 
+
+### Extension 1 
+
+For the first extension, we decided to explore how sentiment related to our topics. To do so, we followed recommendations from Silge & Robinson (2017) text to use the Bing sentiment dictionary. In particular, we classified sentiment at the token (word) level and then generated a sentiment score for each movie review based on the sum of its words' sentiment scores. We then recreated a bar chart demonstrated in Silge & Robinson (2017) after applying the sentiment classification. Our charts shows the differences in sentiment across reviews that were tagged by the CTM model as being highly associated with Topic 7. In this way, we have combined topic modeling output with sentiment analysis techniques. 
+
+
+```{r}
+
+# assign topic from CTM to observations 
+# use the function topics() from topicmodels library to assign the most
+# likely topics for each document (in this case combined reasons) 
+
+topicmodels::topics(CTM9) 
+topic_assigned <- as.data.frame(topicmodels::topics(CTM9)) 
+topic_assigned$row_id <- rownames(topic_assigned) 
+colnames(topic_assigned) <- c("topic_assigned", "row_id") 
+topic_assigned
+
+# add the same row_id column to the original data: 
+sample_clean <- data.frame(sample_reviews) 
+sample_clean$row_id <- rownames(sample_clean) 
+
+# perform data join to attach topic proportions to original data
+sample_clean <- sample_clean %>% 
+  left_join(topic_assigned, by = "row_id")
+
+head(sample_clean) 
+
+# now we'll look at sentiment in a tidy text format following 
+# Silge and Robinson (2017) 
+
+sample_clean %>%
+  filter(topic_assigned == 7) %>% 
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>%
+  mutate(sent_score = ifelse(sentiment == "negative", 1, -1)) %>% 
+  group_by(row_id) %>% 
+  summarize(sent_count = sum(sent_score)) %>% 
+  ggplot(aes(x = row_id, y = sent_count)) + geom_histogram(stat = 'identity') + 
+  labs(x = "Review ID", y = "Sentiment Total", title = "Sentiment Distribution for Movie Reviews Categorized by Topic 7")
+
+
+```
+
+
+### Extension 2 
+
+For our second extension, we explored the difference in term beta values for topic model outputs. Beta represents the probability of a given word appearing in a particular topic. For this extension, we looked at a set of 15 terms from our corpus vocabulary and compared the likelihood that the terms were in topic 1 or 2. While the terms may have higher beta values for other topics that are not contained in this visualization, this extension represents one way to produce a more fine-grained comparison between two given topics. This extension also parallels a visual presented in the Silge & Robinson (2017) text, Text Mining in R. 
+
+```{r}
+
+library(tidyr)
+library(htmltools)
+
+# using CTM model object, extract beta values and store in a matrix 
+review_topics <- tidy(CTM9, matrix = "beta")
+
+# pivot from long to a wide data format and 
+# calculate a ratio of topic 2: topic 1 likelihood (uses beta) 
+beta_wide <- review_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  pivot_wider(names_from = topic, values_from = beta) %>% 
+  filter(topic1 > .001 | topic2 > .001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+
+# create the plot with a random selection of 15 rows 
+beta_wide %>% 
+  sample_n(size = 15) %>% 
+  ggplot(aes(x = reorder(term, desc(log_ratio)), y = log_ratio, fill = log_ratio >0)) + geom_histogram(stat = 'identity') + coord_flip() + ylab("Log Ratio of beta in Topic 2 / Topic 1") + xlab("Term") + scale_fill_manual(values = c("red", "blue")) + theme(legend.position = "none")
+
+```
+
+
+
+
+### Extension 3 
+
+Finally, for our third extension, we explore n-grams in the data set. N-grams are word co-occurances in the original data. Below, we start by exploring the top 10 most frequently stated bigrams in the movie review data base. Bigrams represent two words that appeared consecutively. Bigrams that occured often in the data, as is shown below, are n-grams that likely indicate a meaningful phase.
+
+To generate bigrams, we followed the tidyverse-based approach, which was also demonstrated in Silge & Robinson (2017). 
+
+
+```{r}
+# generate bigrams with each term of bi-gram in separate column 
+library(tidyr) 
+
+bigrams <- sample_clean %>% 
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>% 
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>%
+  filter(!word1 == "br") %>% 
+  filter(!word2 == "br") %>%
+  unite(bigram, word1, word2, sep = " ")
+
+# visualize the most common bigrams
+bigrams %>% 
+  count(bigram) %>%
+  arrange(desc(n)) %>% 
+  head(10) %>%
+  ggplot(aes(x = reorder(bigram, n), y = n, fill = bigram)) + geom_histogram(stat = "identity") + coord_flip() + theme(legend.position = "none") + xlab("Bigram") + ylab("Count") + ggtitle("Most Common Bigrams in Sample Reviews")
+
+
+```
+
+The sample histogram output above is useful in visualizing the most common bigrams in the data set. However, additional modes of visualizing n-gram patterns in the corpus may support deeper insights into word co-occurrences within the data set. For example, the following visualization presents a network of word co-occurrences. The network is based on words that co-occur with one another. By using a network visualization, we can see which words were written, not only in bi-term patterns, but in denser network clusters. 
+
+
+```{r}
+
+bigram_counts <- sample_clean %>% 
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>% 
+  separate(bigram, c("word1", "word2"), sep = " ") %>% 
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) %>% 
+  count(word1, word2, sort = TRUE) 
+
+# bi-gram network visualization 
+library(igraph) 
+library(ggraph) 
+bigram_graph <- bigram_counts %>% 
+  filter(n > 2) %>%
+  graph_from_data_frame()
+
+set.seed(2017)
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+
+```
+
+This is a small data set so there aren't too many clusters of term correlations that contain three or more terms but we can see a few network clusters that emerged from the visualization above. One cluster of common word co-occurances contains the terms, 'films', 'horror', 'budget', and 'low'. This cluster of terms is likely being discussed in reviews that are about low budget horror films. Another cluster of terms contains the words, 'park', 'wook', and 'chan'. These terms were likely stated in movie reviews about Park Chan-Wook, a South Korean movie director. In a larger data set with more data, a network approach to n-gram visualization would likely provide larger network communities. 
+
+
+# Part III: 
+
+#### Provide a 2-3 page single spaced brief research proposal in which you argue for and justify the use of Correlated Topic Models applied to a research topic that you are interested in. Please address the following questions in this order as you apply your new knowledge of these techniques (feel free to write this part in MS Word or similar and copy/paste into the markdown). 
+
+*a. What is the purpose of your study?*
+
+The purpose of the study is to apply Correlated Topic Models to analyze written reviews regarding the "Big Three" consulting firms (McKinsey & Co., The Boston Consulting Company, and Bain & Co) to examine which topics are associated with higher or lower overall ratings related to employee experience.
+
+*b. Is there any research literature and theory that supports this argument? How so? *
+
+  Examining the overall rating given to given to these firms can serve as a proxy for employee satisfaction. Roznowski and Hulin (1992, p. 26) described job satisfaction as "the most informative data a manager or researcher can have for predicting employee behavior." Additionally, Lambert et al. concluded that job satisfaction is a highly prominent predictor of turnover intentions (2001). Additionally, analyzing Glassdoor's "Top Review Highlights by Sentiment" for these companies identified culture, salary, and flexibility as common pros, whereas work-life balance, managers, and late hours are recurrent cons. Past literature suggests that culture, specifically Organizational Citizenship Behaviors (OCB), which measures the extent to which workers report willingness to help their coworkers (Lambert, 2000), is associated with lower intentions to quit. Likewise, control over work schedule, which could serve as a proxy for flexibility, was found to be related to lower odds of reporting an intent to quit (Kennedy and Mohr, 2022), and salary has been historically positively associated with job satisfaction. On the other hand, poor work-life balance and long hours can induce work to family conflict, which is positively related to burnout (Pleck et al. 1980) and absenteeism (Goff et al. 2006) while negatively associated with job satisfaction (Bedeian et al. 1988; Bacharach et al. 1991). In addition, poor management is related to job satisfaction. For example, Family-Supportive Supervisor Behaviors, which evaluates supervisors' support for integrating work and family, as perceived by employees (Hammer et al., 2009), is significantly related to family-work conflict (Han & Mclean, 2020) and was found to have a positive effect on reducing employees' intentions to quit (Virdo & Daly, 2019).
+  Despite the useful information already provided by Glassdoor, we hope that applying Correlated Topic Model will reveal more topics and allow for further analysis to examine their relationship with overall rating. 
+
+
+*c. Why is a Correlated Topic Model a means to address this purpose? *
+
+  Correlated Topic Model (CTM) identifies latent topics as features across the employee reviews. CTM is a useful approach for identifying themes underlying text at scale. In addition, unlike LDA, CTM allows for correlations between topics identified. This is an important extension of the LDA topic model as certain topics related to employee experience would be expected to relate to one another. For example, a topic related to 'career development opportunities' would be expected to relate to a topic corresponding with 'perceived organizational support'. Finally, CTM offers a useful means to explore employee company reviews as CTM output can be used in subsequent modeling techniques. For example, topic proportions assigned to individual reviews by CTM can be treated as predictors in regression-based frameworks. By doing so, researchers can identify meaningful relationships between identified topics and relevant meta-data like company demographics, compensation, and turnover rates. 
+
+
+*d. What would be the research question(s)? (To what extent…) *
+
+  How many distinct topics exist across employee reviews of the "big three" consulting firms, what are they, and do they differ between the firms? To what extent are these topics associated with overall rating, controlling for other variables such as location?
+
+
+*f. What types of data would you be looking for? *
+
+  To carry out this study, we will need a data set containing employee company reviews that are stored as raw text data. The raw text will serve as input for topic modeling techniques, including pre-processing methods that will render the text available for quantitative analysis. In addition to the text data, the data set that we would be looking for would also have additional fields containing columns of data with characteristics about the three consulting firms. For example, to perform follow-up analyses that utilize the topic model output, we would need a column containing the employees' overall rating of the firm. In addition, as previously discussed, we would be interested variables like firm location, which could be used as a control variable in the analysis of the relationship between topic and overall employee rating. 
+
+
+*g. Provide the generalized equation for the topic model and a brief narrative in which you specify the type of model, following the examples from the readings. *
+
+  Topic modeling takes an unsupervised approach to uncover latent topics in documents. Unlike LDA, correlated topic modeling uses the multivariate normal distribution instead of the Dirichlet with the goal of generating *k* values. To do so, it needs *k* means and *k* standard deviations. To transform the multivariate normal distribution into probabilities, CTM passes the values through a variant of the logistic function. 
+
+```{r}
+# Load libraries needed
+library(png)
+library(magick)
+
+# Read in image
+img <- image_read("/Users/gianzlupko/Desktop/ORLA 6541 Data Science/ORLA_6541_Applied_Data_Science/ctm_formula.png")
+
+# Visualize the image
+plot(img)
+```
+In addition to the CTM model formula, a plate diagram for CTM is shown below. 
+
+```{r}
+# Read in image
+img1 <- image_read("/Users/gianzlupko/Desktop/ORLA 6541 Data Science/ORLA_6541_Applied_Data_Science/ctm_platediagram.png")
+
+# Visualize the image
+plot(img1)
+```
+
+Where η ('eta') is a vector k of values of arbitrary sizes, ηⱼ is every output multivariate normal, and j corresponds to a topic.
+
+
+*h. What do you think you would find? *
+
+  We believe that we will find topics related to work-life balance, managers, hours, culture, salary, and role flexibility in employee reviews. In addition, we hope that further analysis will reveal which of these topics are most related to the overall rating. For example, given a list of 10+ topics, it would be helpful to know which are most related to employees' overall rating of the firm. Moreover, between firm comparisons would highlight which firms these relationships were most strong. For example, the relationship between pay and overall rating may vary based on the firm under examination. 
+
+*i. Why would this be important? What would be the implications for this research domain?*
+	
+	Due to the demanding nature of working for the "big three" consulting firms, it is important to understand employees' perspectives and the underlying factors affecting their job satisfaction. Taking an unsupervised approach to identify these factors and analyzing their relationship to employees' objective rating of their firm could provide these organizations with directions to increase their employees' satisfaction. 
+	
+
+
+
+
