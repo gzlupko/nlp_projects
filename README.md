@@ -4,13 +4,41 @@ This repository contains Natural Language Processing (NLP) and text mining techi
 
 
 ## Table of Contents 
-* [Sample Methods](#Sample-Methods)
+* [Pre-Processing](#Pre-Processing)
+* [Topic Models](#Topic-Models)
+* [Sentiment Analysis](#Sentiment-Analysis)
 
 
 
-### Sample Methods
 
-##### Structural Topic Models 
+## Pre-Processing
+
+Create a document term matrix (DTM) using a tidytext approach in R. 
+
+```
+library(tidytext) 
+
+# create document-term matrix 
+sample_dtm <-sample_reviews %>%
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words) %>%  # removes stop word list in tidytext package
+  count(doc_id, word, sort = T) %>%
+  cast_dtm(document = doc_id, term = word, n) 
+
+```
+
+
+
+## Topic Models
+
+#### Correlated Topic Model (CTM)
+
+
+```
+
+
+
+```
 
 
 ![alt text](https://github.com/gzlupko/dnl_nlp/blob/main/Studies/CDC_2021/vizualizations/search_k_diagnostic_values.jpeg)
@@ -95,7 +123,7 @@ The below table shows the most commonly occuring words that succeed target words
 &nbsp;
 
 
-###### Sentiment Analysis 
+##### Sentiment Analysis 
 
 Below are word counts and associated sentiments for sample airline review Twitter data. 
 
