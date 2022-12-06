@@ -64,6 +64,40 @@ After loading in the data, we need to create a special data structure that topic
 
 To create one, the `Corpus()` function is used from the `tm` package. 
 
+
+
+Create the DTM in R
+
+```{r}
+library(tidytext)
+library(tidyverse)
+
+library(tidytext) 
+
+# create document-term matrix 
+sample_dtm <-sample_reviews %>%
+  unnest_tokens(word, text) %>% 
+  anti_join(stop_words) %>%
+  count(doc_id, word, sort = T) %>%
+  cast_dtm(document = doc_id, term = word, n) 
+```
+
+
+
+```{r}
+sample_reviews %>% 
+  mutate(text = tolower(text)) 
+
+sample_reviews %>%
+  mutate(text = gsub("[^[:alpha:]]", " ", text))
+```
+
+
+
+
+
+
+
 ```{r}
 # corpus
 corpus <- Corpus(VectorSource(sample_reviews$text))
@@ -222,7 +256,20 @@ control_CTM_VEM
 CTM9 <- CTM(text_DTM_trimmed, k = 9, control = control_CTM_VEM1, 
             seed = 12244) # set seed for reproducibility 
 CTM9
+
+CTM(sample_dtm, k = 9) 
 ```
+
+
+LDA as an alternative
+```{r}
+
+lda_mod <- LDA(sample_dtm, 
+    k = 9, 
+    method = "VEM")
+```
+
+
 
 
 #### CTM Output 
