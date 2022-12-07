@@ -91,7 +91,7 @@ dat_clean <- dat_clean %>%
 # used to convert from wide to long format 
 
 reasons_data <- dat_clean %>%
-  select(participant_id, Reason1, Reason2, Reason3, Reason3, 
+  select(participant_id, Reason1, Reason2, Reason3,
          Reason4, Reason5, Reason6, Reason7, Reason8, Reason9, Reason10)  
 
 # first convert reasons to long data format
@@ -426,9 +426,31 @@ Currently setting lower threshold to 3, which may be smaller lower threshold for
 out <- prepDocuments(processed$documents, processed$vocab)
 
 # explore minimum threshold 
-plotRemoved(processed$documents, lower.thresh = seq(1, 50, by = 1)) 
+min_thresh_plot_reasons_for <- plotRemoved(processed$documents, 
+                                           lower.thresh = seq(1, 10, by = 1)) 
 
-# set lower threshold of 5, requiring words to appear in at least 5 reasons stated in order to be included in the analysis
+thresh_dat <- data.frame(min_thresh_plot_reasons_for$nwords) 
+thresh_dat <- thresh_dat %>% 
+  rename(words_removed = min_thresh_plot_reasons_for.nwords) %>%
+  mutate(min_docs = 1:10)
+thresh_dat
+
+# plot the words removed as function of min docs words appear 
+thresh_dat %>% 
+  ggplot(aes(x = min_docs, y = words_removed)) + 
+  geom_line() + theme_apa() + 
+  scale_x_continuous(breaks = seq(min(thresh_dat$min_docs), max(thresh_dat$min_docs), by = 1)) + labs(x = "Minimum No. Documents", y = "Number of Words Removed") 
+
+
+thresh_dat %>% 
+  ggplot(aes(x = min_docs, y = words_removed)) + 
+  geom_line() + 
+  scale_x_continuous(breaks = seq(min(thresh_dat$min_docs), max(thresh_dat$min_docs), by = 1)) +
+  scale_y_continuous(breaks = seq(min(0), max(thresh_dat$words_removed), by = 50)) +
+  theme_linedraw() + labs(x = "Minimum No. Documents", y = "Number of Words Removed") + 
+  theme_apa() 
+
+# set lower threshold of 3, requiring words to appear in at least 3 reasons stated in order to be included in the analysis
 
 out <- prepDocuments(documents = processed$documents,
               vocab = processed$vocab,
