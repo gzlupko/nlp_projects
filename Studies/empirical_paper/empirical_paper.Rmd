@@ -990,7 +990,7 @@ mod1 %>% summary()
 
 # mod2 = text features added 
 
-mod2_reasons_for <- lm(behavior_ave ~ burnout + job_sat + sent_vader + n_words + n_first_person + n_first_personp + n_second_personp  + n_third_person, data = reasons_for_data)
+mod2_reasons_for <- lm(behavior_ave ~ sent_vader + n_words + n_first_person + n_first_personp + n_second_personp + n_third_person, data = reasons_for_data)
 mod2_reasons_for %>% summary() 
 
 
@@ -1001,6 +1001,11 @@ anova(mod1, mod2_reasons_for)
 # export regression analysis in apa format 
 library(apaTables) 
 reasons_for_reg_table <- apa.reg.table(mod2_reasons_for, filename = "reasons_for_reg_table.doc") 
+
+
+mod2_reasons_for %>% 
+  summary() 
+
 
 
 ```
@@ -1027,14 +1032,14 @@ mod1
 
 # model2: topics against + text features 
 
-mod2_reasons_against <- lm(behavior_ave ~ job_sat + burnout + Topic1 + Topic2 + Topic3 + sent_vader + n_words + n_first_person + n_first_personp + n_second_personp + n_third_person, data = against_scaled)
-summary(mod2) 
+mod2_reasons_against <- lm(behavior_ave ~ sent_vader + n_words + n_uq_words + n_first_person + n_first_personp + n_second_personp + n_third_person, data = reasons_against_full)
+summary(mod2_reasons_against) 
 
 
 # export regression table output; unable to save as an excel type with apaTables 
 reasons_against_reg_table <- apa.reg.table(mod2_reasons_against, filename = "against_reg_table.doc") 
 
-
+reasons_against_full$n_uq_words
 ```
 
 
