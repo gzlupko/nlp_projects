@@ -1,0 +1,134 @@
+---
+title: "stats_review_motta"
+author: "Gian Zlupko"
+date: "2023-04-19"
+output: html_document
+---
+
+
+
+
+```{r, warning = F, message = F}
+library(xlsx) 
+library(tidyverse) 
+
+variables = read.xlsx("all_variables_reasons_for.xlsx", sheetIndex = 1) 
+```
+
+
+
+Subset 
+```{r}
+
+# subset the data 
+data_sub <- variables %>% 
+  select(Topic1:Topic3, behavior_ave, 
+         burnout, job_sat, n_words, sent_vader, n_first_person, n_first_personp, 
+         n_third_person)
+
+# remove NAs
+data_clean <- na.omit(data_sub)
+
+# inspect 
+round(head(data_clean), 3) 
+```
+
+
+Correlations 
+```{r}
+round(cor(data_clean), 2) 
+```
+
+
+Scale and regression: behavior predicted by text variables
+```{r}
+data_scaled <- as.data.frame(scale(data_clean)) 
+
+# sample reg 
+mod1 <- lm(behavior_ave ~ Topic1 + Topic2 + n_words + n_first_person + n_first_personp + n_third_person, data = data_scaled) 
+summary(mod1) 
+```
+Very small coefficients and a very small R-square, even when using multiple text variables. 
+
+```{r}
+job_mod <- lm(job_sat ~ Topic1 + Topic2 + n_words + n_first_person + n_first_personp + n_third_person, data = data_scaled)
+summary(job_mod)
+```
+
+Again, really small R-square and here model is not significant.
+
+
+#### Dim Reduction
+
+PCA 
+```{r}
+pca1 <- princomp(x = data_scaled) 
+summary(pca1) 
+```
+
+
+
+
+```{r}
+pca1$loadings
+```
+
+
+#### Factor Analysis on Mixed Data (FAMD)
+
+```{r}
+mixed_data <- data_clean %>%
+  mutate(Topic_Label = as.factor(ifelse(Topic1 > .5, "Topic1", ifelse(Topic2 > .5, "Topic2", ifelse(Topic3 > .5, "Topic3", "NoTopic"))))) %>%
+  select(-c(Topic1:Topic3)) 
+
+str(mixed_data) 
+```
+
+
+```{r, message = F, warning = F}
+library(factoextra) 
+library(FactoMineR)
+
+# fit FAMD
+res.famd <- FAMD(mixed_data, graph = F)
+
+# inspect model object 
+print(res.famd)
+
+```
+
+Eigenvalues 
+
+```{r}
+eig.val <- get_eigenvalue(res.famd)
+head(eig.val)
+```
+
+
+
+```{r}
+fviz_screeplot(res.famd)
+```
+
+
+
+```{r}
+# Plot of variables
+fviz_famd_var(res.famd, repel = TRUE)
+# Contribution to the first dimension
+fviz_contrib(res.famd, "var", axes = 1)
+# Contribution to the second dimension
+fviz_contrib(res.famd, "var", axes = 2)
+```
+
+Graph the qualitative variables
+
+```{r}
+fviz_famd_var(res.famd, "quali.var", col.var = "contrib", 
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07")
+             )
+```
+
+
+
+
