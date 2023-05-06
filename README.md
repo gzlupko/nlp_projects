@@ -1,8 +1,6 @@
 # NLP Code for Social Science Research
 
-This repository contains Natural Language Processing (NLP) and text mining techiques conducted in R for social sciencce, organizational, and survey-based research. 
-
-[![Visitors](https://visitor-badge.glitch.me/badge?page_id=gzlupko)](https://github.com/gzlupko/dnl_nlp)
+This repository contains Natural Language Processing (NLP) and text mining techiques conducted in R for social sciencce, organizational, and survey-based research.
 
 
 ## Table of Contents 
