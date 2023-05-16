@@ -1,6 +1,8 @@
 ---
 title: "CDC_Analysis"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 Data analysis related to CDC compliance behaviors (2021) 
@@ -20,6 +22,7 @@ library(wesanderson)
 #require("knitr")
 #opts_knit$set(root.dir = "/Users/gianzlupko/Desktop/Workgroup/dnl_nlp/Studies/CDC_2021/data") 
 ```
+
 
 
 

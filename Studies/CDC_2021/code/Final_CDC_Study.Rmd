@@ -193,7 +193,7 @@ word_probs <- function(td_beta) {
   # Ungroup
   ungroup() %>%
   # Generate the variables topic and term
-  dplyr::mutate(topic = paste0("Topic ", topic),
+  dplyr::mutate(topic = paste0(topic),
                 term = reorder_within(term, beta, topic)) %>%
   # And plot it
   ggplot() +
@@ -287,7 +287,8 @@ fit_three <- stm(out$documents, # the documents
             K = 3, # 2 topics
             max.em.its = 75, # set to run for a maximum of 75 EM iterations
             data = out$meta, # all the variables (we're not actually including any predictors in this model, though)
-            init.type = "Spectral") 
+            init.type = "Spectral", 
+            seed = 10901) 
 
 sageLabels(fit_three) # only works with content covariates in the model
 plot(fit_three)
@@ -318,9 +319,29 @@ reasons_for_proportions <- make.dt(fit_three)
 
 summarize_all(reasons_for_proportions, mean)
 
+
+# write topic betas to a csv file for manual graphics 
+
+td_beta <- tidy(fit_three) 
+td_beta <- td_beta %>%
+   mutate(topic = ifelse(topic == 1, "To Protect Others",  
+                         ifelse(topic == 2, "To Protect Self", 
+                                ifelse(topic == 3, "To Avoid Spread", NA)))) %>%
+  mutate(topic = as.factor(topic)) %>%
+  group_by(topic) %>% arrange(desc(beta)) 
+
+
+# update select character strings to undo stemming for publication 
+
+td_beta$term <- str_replace_all(td_beta$term, "healthi", "health")
+td_beta$term <- str_replace_all(td_beta$term, "safeti", "safety")
+td_beta$term <- str_replace_all(td_beta$term, "famili", "family")
+td_beta$term <- str_replace_all(td_beta$term, "peopl", "people")
+td_beta$term <- str_replace_all(td_beta$term, "exampl", "example")
+td_beta$term <- str_replace_all(td_beta$term, "practic", "practices")
+word_probs(td_beta) 
+
 ```
-
-
 Calculate estimated effects for the 3-topic solution
 
 ```{r stm-3-topic-estimates}
@@ -638,6 +659,9 @@ reasons_against_prop <- make.dt(against_fit_three)
 
 summarize_all(reasons_against_prop, mean) 
 
+td_beta
+
+#write.csv(td_beta, "against_fit_k3_beta.csv") 
 
 ```
 

@@ -773,6 +773,17 @@ word_probs_against(against_tidy)
 ```
 
 
+STM Insights 
+```{r}
+# export an .Rdata file with the stm model objects included 
+save.image(file = "empirical_paper.Rdata")
+library(stminsights)
+run_stminsights()
+```
+
+
+
+
 
 # Assign Topics to Study Data 
 

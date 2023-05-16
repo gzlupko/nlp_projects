@@ -31,12 +31,17 @@ data_clean <- na.omit(data_sub)
 
 # inspect 
 round(head(data_clean), 3) 
+
+# inspect variance 
+sapply(data_clean, FUN = sd) 
 ```
 
 
 Correlations 
 ```{r}
 round(cor(data_clean), 2) 
+
+
 ```
 
 
@@ -75,6 +80,8 @@ pca1$loadings
 
 
 #### Factor Analysis on Mixed Data (FAMD)
+
+note: use the cor matrix for FAMD 
 
 ```{r}
 mixed_data <- data_clean %>%
@@ -129,6 +136,76 @@ fviz_famd_var(res.famd, "quali.var", col.var = "contrib",
              )
 ```
 
+
+
+Also try: dual scaling, random forest with bootstrapping, the sample(x, replace = T). OLS categorical 
+
+
+#### Random Forest 
+
+RF may be beneficial as we previously saw with the FAMD model that only a select few variables contributed to the overall variance. RF resamples and randomly selects subsets of the predictors. 
+
+
+```{r}
+library(randomForest)
+library(caTools)
+
+sample = sample.split(data_scaled$behavior_ave, SplitRatio = .75)
+train = subset(data_scaled, sample == TRUE)
+test  = subset(data_scaled, sample == FALSE)
+
+dim(train)
+dim(test)
+```
+
+
+First, using the RF model to learn 'behavior ave', the T2 decision to WFH.
+```{r}
+rf <- randomForest(
+  behavior_ave ~ .,
+  data=train
+)
+
+importance(rf)
+
+pred = predict(rf, newdata = test[-14])
+cm = table(test, pred)
+```
+
+
+
+```{r}
+varImpPlot(rf)
+```
+
+
+
+
+```{r}
+pred1=predict(rf,type = "prob")
+library(ROCR)
+perf = prediction(pred1[,2], data_scaled$behavior_ave)
+# 1. Area under curve
+auc = performance(perf, "auc")
+auc
+# 2. True Positive and Negative Rate
+pred3 = performance(perf, "tpr","fpr")
+# 3. Plot the ROC curve
+plot(pred3,main="ROC Curve for Random Forest",col=2,lwd=2)
+abline(a=0,b=1,lwd=2,lty=2,col="gray")
+```
+
+
+
+
+
+#### Dual Scaling 
+
+```{r}
+library(cds)
+data_matrix = as.matrix(data_clean)
+cds(data_matrix)
+```
 
 
 
